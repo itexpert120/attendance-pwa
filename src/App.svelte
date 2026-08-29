@@ -1,89 +1,48 @@
-<script>
-  import svelteLogo from './assets/svelte.svg'
-  import viteLogo from './assets/vite.svg'
-  import heroImg from './assets/hero.png'
-  import Counter from './lib/Counter.svelte'
+<script lang="ts">
+  import { CircleNotch as LoaderCircle, Warning as AlertTriangle } from 'phosphor-svelte'
+  import { AttendanceState } from './lib/app-state.svelte'
+  import Dashboard from './lib/components/Dashboard.svelte'
+  import PwaStatus from './lib/components/PwaStatus.svelte'
+  import RegisterView from './lib/components/RegisterView.svelte'
+  import SetupScreen from './lib/components/SetupScreen.svelte'
+  import Button from './lib/components/ui/Button.svelte'
+
+  const appState = new AttendanceState()
+  let started = $state(false)
+  let screen = $state<'dashboard' | 'register'>('dashboard')
+
+  $effect(() => {
+    if (!started) {
+      started = true
+      void appState.initialize()
+    }
+  })
+
+  function openRegister(registerId: string) {
+    appState.selectRegister(registerId)
+    screen = 'register'
+  }
+
+  function backToDashboard() {
+    screen = 'dashboard'
+    appState.selectRegister(null)
+  }
 </script>
 
-<section id="center">
-  <div class="hero">
-    <img src={heroImg} class="base" width="170" height="179" alt="" />
-    <img src={svelteLogo} class="framework" alt="Svelte logo" />
-    <img src={viteLogo} class="vite" alt="Vite logo" />
-  </div>
-  <div>
-    <h1>Get started</h1>
-    <p>Edit <code>src/App.svelte</code> and save to test <code>HMR</code></p>
-  </div>
-  <Counter />
-</section>
+{#if !appState.ready}
+  <main class="grid min-h-svh place-items-center bg-paper-100 px-5 text-center text-ink-950">
+    <div><LoaderCircle size={30} class="mx-auto animate-spin text-register-700" /><p class="mt-4 font-display text-xl font-semibold">Opening your offline register…</p><p class="mt-1 text-xs font-semibold text-ink-600">Loading data stored on this device</p></div>
+  </main>
+{:else if appState.error}
+  <main class="grid min-h-svh place-items-center bg-paper-100 px-5 text-center text-ink-950">
+    <div class="max-w-md rounded-3xl border border-red-200 bg-white p-7 shadow-soft"><AlertTriangle size={29} class="mx-auto text-red-700" /><h1 class="mt-4 font-display text-2xl font-semibold">The offline database could not open</h1><p class="mt-2 text-sm leading-6 text-ink-600">{appState.error}</p><Button class="mt-5" onclick={() => location.reload()}>Try again</Button></div>
+  </main>
+{:else if !appState.settings}
+  <SetupScreen state={appState} />
+{:else if screen === 'register' && appState.selectedRegister}
+  <RegisterView state={appState} onback={backToDashboard} />
+{:else}
+  <Dashboard state={appState} onopenregister={openRegister} />
+{/if}
 
-<div class="ticks"></div>
-
-<section id="next-steps">
-  <div id="docs">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#documentation-icon"></use>
-    </svg>
-    <h2>Documentation</h2>
-    <p>Your questions, answered</p>
-    <ul>
-      <li>
-        <a href="https://vite.dev/" target="_blank" rel="noreferrer">
-          <img class="logo" src={viteLogo} alt="" />
-          Explore Vite
-        </a>
-      </li>
-      <li>
-        <a href="https://svelte.dev/" target="_blank" rel="noreferrer">
-          <img class="button-icon" src={svelteLogo} alt="" />
-          Learn more
-        </a>
-      </li>
-    </ul>
-  </div>
-  <div id="social">
-    <svg class="icon" role="presentation" aria-hidden="true">
-      <use href="/icons.svg#social-icon"></use>
-    </svg>
-    <h2>Connect with us</h2>
-    <p>Join the Vite community</p>
-    <ul>
-      <li>
-        <a href="https://github.com/vitejs/vite" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#github-icon"></use>
-          </svg>
-          GitHub
-        </a>
-      </li>
-      <li>
-        <a href="https://chat.vite.dev/" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#discord-icon"></use>
-          </svg>
-          Discord
-        </a>
-      </li>
-      <li>
-        <a href="https://x.com/vite_js" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#x-icon"></use>
-          </svg>
-          X.com
-        </a>
-      </li>
-      <li>
-        <a href="https://bsky.app/profile/vite.dev" target="_blank" rel="noreferrer">
-          <svg class="button-icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#bluesky-icon"></use>
-          </svg>
-          Bluesky
-        </a>
-      </li>
-    </ul>
-  </div>
-</section>
-
-<div class="ticks"></div>
-<section id="spacer"></section>
+<PwaStatus />
