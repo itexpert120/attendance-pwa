@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CircleNotch as LoaderCircle, Warning as AlertTriangle } from 'phosphor-svelte'
+  import LoaderCircle from 'phosphor-svelte/lib/CircleNotch'
+  import AlertTriangle from 'phosphor-svelte/lib/Warning'
   import { AttendanceState } from './lib/app-state.svelte'
   import Dashboard from './lib/components/Dashboard.svelte'
   import PwaStatus from './lib/components/PwaStatus.svelte'

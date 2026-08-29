@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Dialog } from 'bits-ui'
-  import { X } from 'phosphor-svelte'
+  import X from 'phosphor-svelte/lib/X'
   import type { Snippet } from 'svelte'
   import { fade, fly } from 'svelte/transition'
   import Button from './Button.svelte'

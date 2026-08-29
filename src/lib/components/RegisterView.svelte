@@ -1,13 +1,12 @@
 <script lang="ts">
-  import {
-    ArrowLeft,
-    ChartBar as BarChart3,
-    CurrencyDollar as Banknote,
-    DotsThreeVertical,
-    Printer,
-    UserPlus,
-    UsersThree as UsersRound,
-  } from 'phosphor-svelte'
+  import { flushSync } from 'svelte'
+  import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft'
+  import BarChart3 from 'phosphor-svelte/lib/ChartBar'
+  import Banknote from 'phosphor-svelte/lib/CurrencyDollar'
+  import DotsThreeVertical from 'phosphor-svelte/lib/DotsThreeVertical'
+  import Printer from 'phosphor-svelte/lib/Printer'
+  import UserPlus from 'phosphor-svelte/lib/UserPlus'
+  import UsersRound from 'phosphor-svelte/lib/UsersThree'
   import type { AttendanceState } from '../app-state.svelte'
   import { monthLabel } from '../calculations'
   import AttendanceGrid from './AttendanceGrid.svelte'
@@ -29,6 +28,7 @@
   let activeTab = $state<'attendance' | 'fees' | 'summary'>('attendance')
   let rosterOpen = $state(false)
   let actionsOpen = $state(false)
+  let printing = $state(false)
   let register = $derived(appState.selectedRegister!)
   let group = $derived(appState.classGroups.find((item) => item.id === register.classGroupId))
 
@@ -37,7 +37,17 @@
     { id: 'fees' as const, label: 'Fees & remarks', icon: Banknote },
     { id: 'summary' as const, label: 'Monthly summary', icon: BarChart3 },
   ]
+
+  function printRegister() {
+    flushSync(() => (printing = true))
+    window.print()
+  }
 </script>
+
+<svelte:window
+  onbeforeprint={() => flushSync(() => (printing = true))}
+  onafterprint={() => (printing = false)}
+/>
 
 <main class="min-h-svh bg-paper-100 text-ink-950 print:hidden">
   <header class="sticky top-0 z-40 border-b border-paper-200 bg-paper-50/95 backdrop-blur">
@@ -53,13 +63,13 @@
         {#if actionsOpen}
           <div class="absolute right-0 top-12 z-50 w-48 overflow-hidden rounded-xl border border-paper-200 bg-white p-1.5 shadow-lifted">
             <button class="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-xs font-bold text-ink-800 active:bg-paper-100" onclick={() => { actionsOpen = false; rosterOpen = true }}><UserPlus size={17} weight="bold" /> Manage students</button>
-            <button class="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-xs font-bold text-ink-800 active:bg-paper-100" onclick={() => { actionsOpen = false; window.print() }}><Printer size={17} weight="bold" /> Print register</button>
+            <button class="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-xs font-bold text-ink-800 active:bg-paper-100" onclick={() => { actionsOpen = false; printRegister() }}><Printer size={17} weight="bold" /> Print register</button>
           </div>
         {/if}
       </div>
       <div class="hidden items-center gap-2 sm:flex">
         <Button variant="secondary" size="sm" onclick={() => (rosterOpen = true)}><UserPlus size={16} weight="bold" /> Students</Button>
-        <Button size="sm" onclick={() => window.print()}><Printer size={16} weight="bold" /> Print register</Button>
+        <Button size="sm" onclick={printRegister}><Printer size={16} weight="bold" /> Print register</Button>
       </div>
     </div>
     <nav class="mx-auto hidden max-w-[100rem] gap-1 overflow-x-auto px-3 md:flex sm:px-5" aria-label="Register sections">
@@ -93,5 +103,5 @@
   {/each}
 </nav>
 
-<PrintRegister state={appState} />
+{#if printing}<PrintRegister state={appState} />{/if}
 <RosterManager state={appState} bind:open={rosterOpen} />

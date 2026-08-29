@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { ArrowLeft, PencilSimple as Pencil, Plus, UserPlus, Users } from 'phosphor-svelte'
+  import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft'
+  import Pencil from 'phosphor-svelte/lib/PencilSimple'
+  import Plus from 'phosphor-svelte/lib/Plus'
+  import UserPlus from 'phosphor-svelte/lib/UserPlus'
+  import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import { rowsForClass } from '../calculations'
   import type { EnrollmentRow } from '../types'

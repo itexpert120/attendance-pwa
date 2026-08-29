@@ -1,15 +1,13 @@
 <script lang="ts">
-  import {
-    Archive,
-    CalendarPlus,
-    CaretRight as ChevronRight,
-    DownloadSimple as Download,
-    Gear as Settings,
-    Plus,
-    Student as GraduationCap,
-    UploadSimple as Upload,
-    Users,
-  } from 'phosphor-svelte'
+  import Archive from 'phosphor-svelte/lib/Archive'
+  import CalendarPlus from 'phosphor-svelte/lib/CalendarPlus'
+  import ChevronRight from 'phosphor-svelte/lib/CaretRight'
+  import Download from 'phosphor-svelte/lib/DownloadSimple'
+  import Settings from 'phosphor-svelte/lib/Gear'
+  import Plus from 'phosphor-svelte/lib/Plus'
+  import GraduationCap from 'phosphor-svelte/lib/Student'
+  import Upload from 'phosphor-svelte/lib/UploadSimple'
+  import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import { registerLabel, shortMonthLabel } from '../calculations'
   import RosterManager from './RosterManager.svelte'
@@ -142,8 +140,8 @@
       <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div><h2 class="font-display text-2xl font-semibold tracking-tight text-ink-950">Recent registers</h2><p class="mt-0.5 text-xs font-medium text-ink-600">Continue a month or keep a portable offline backup.</p></div>
         <div class="flex items-center gap-1">
-          <Button variant="ghost" size="sm" onclick={backup}><Download size={15} weight="bold" /> Backup</Button>
-          <Button variant="ghost" size="sm" onclick={() => restoreInput.click()}><Upload size={15} weight="bold" /> Restore</Button>
+          <Button variant="ghost" size="sm" class="!min-h-11" onclick={backup}><Download size={15} weight="bold" /> Backup</Button>
+          <Button variant="ghost" size="sm" class="!min-h-11" onclick={() => restoreInput.click()}><Upload size={15} weight="bold" /> Restore</Button>
           <input class="hidden" bind:this={restoreInput} type="file" accept="application/json,.json" onchange={restore} />
         </div>
       </div>

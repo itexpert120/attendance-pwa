@@ -29,6 +29,46 @@ describe('offline database backup', () => {
       phone: '+92 300 0000000',
       createdAt: '2026-08-29T00:00:00.000Z',
     })
+    await db.classGroups.put({
+      id: 'class-1',
+      className: '7',
+      section: 'A',
+      createdAt: '2026-08-29T00:00:00.000Z',
+    })
+    await db.enrollments.put({
+      id: 'enrollment-1',
+      studentId: 'student-1',
+      classGroupId: 'class-1',
+      rollNumber: '1',
+      admittedOn: '2026-08-01',
+    })
+    await db.registers.put({
+      id: 'register-1',
+      classGroupId: 'class-1',
+      year: 2026,
+      month: 8,
+      createdAt: '2026-08-29T00:00:00.000Z',
+    })
+    await db.attendance.put({
+      id: 'register-1:enrollment-1:3:1',
+      registerId: 'register-1',
+      enrollmentId: 'enrollment-1',
+      day: 3,
+      session: 1,
+      status: 'P',
+    })
+    await db.feeEntries.put({
+      id: 'register-1:enrollment-1:1',
+      registerId: 'register-1',
+      enrollmentId: 'enrollment-1',
+      installment: 1,
+      ftf: 10000,
+      ff: 500,
+      arrears: 0,
+      lateCertificate: 0,
+      slc: 0,
+      dcf: 0,
+    })
 
     const backup = await exportAttendanceDatabase()
     await db.settings.clear()
@@ -39,5 +79,27 @@ describe('offline database backup', () => {
 
     expect((await db.settings.get('school'))?.schoolName).toBe('Offline School')
     expect((await db.students.get('student-1'))?.phone).toBe('+92 300 0000000')
+    expect((await db.attendance.get('register-1:enrollment-1:3:1'))?.status).toBe('P')
+    expect((await db.feeEntries.get('register-1:enrollment-1:1'))?.ftf).toBe(10000)
+  })
+
+  it('enforces unique admission numbers in device-local storage', async () => {
+    await db.students.add({
+      id: 'student-1',
+      admissionNumber: 'A-001',
+      name: 'First Student',
+      phone: '',
+      createdAt: '2026-08-29T00:00:00.000Z',
+    })
+
+    await expect(
+      db.students.add({
+        id: 'student-2',
+        admissionNumber: 'A-001',
+        name: 'Second Student',
+        phone: '',
+        createdAt: '2026-08-29T00:00:00.000Z',
+      }),
+    ).rejects.toThrow()
   })
 })

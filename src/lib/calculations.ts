@@ -236,7 +236,14 @@ export function feesForInstallment(
 }
 
 export function feeGrandTotal(amounts: FeeAmounts) {
-  return Object.values(amounts).reduce((total, value) => total + value, 0)
+  return (
+    amounts.ftf +
+    amounts.ff +
+    amounts.arrears +
+    amounts.lateCertificate +
+    amounts.slc +
+    amounts.dcf
+  )
 }
 
 export function installmentStudentCount(

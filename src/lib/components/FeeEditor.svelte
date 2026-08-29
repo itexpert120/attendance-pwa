@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { Calculator, CaretLeft, CaretRight } from 'phosphor-svelte'
+  import Calculator from 'phosphor-svelte/lib/Calculator'
+  import CaretLeft from 'phosphor-svelte/lib/CaretLeft'
+  import CaretRight from 'phosphor-svelte/lib/CaretRight'
   import { fly } from 'svelte/transition'
   import type { AttendanceState } from '../app-state.svelte'
   import { displayToMinor, feeGrandTotal, minorToDisplay } from '../calculations'

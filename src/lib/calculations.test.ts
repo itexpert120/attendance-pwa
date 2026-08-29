@@ -5,12 +5,26 @@ import {
   broughtForwardAttendance,
   currentAttendance,
   dateKey,
+  daysInMonth,
+  displayToMinor,
   feeGrandTotal,
+  feesByEnrollment,
+  installmentStudentCount,
+  isEnrollmentActiveOn,
+  isEnrollmentInMonth,
   isHolidayDay,
   monthlyMovement,
   workingTimings,
 } from './calculations'
-import type { AttendanceMark, EnrollmentRow, Holiday, Register, SchoolSettings } from './types'
+import type {
+  AttendanceMark,
+  Enrollment,
+  EnrollmentRow,
+  FeeEntry,
+  Holiday,
+  Register,
+  SchoolSettings,
+} from './types'
 
 const settings: SchoolSettings = {
   id: 'school',
@@ -35,6 +49,12 @@ describe('attendance calendar calculations', () => {
     expect(academicYearStartYear(register('apr', 2026, 4), settings)).toBe(2026)
   })
 
+  it('handles leap-year month lengths and zero-padded date keys', () => {
+    expect(daysInMonth(2024, 2)).toBe(29)
+    expect(daysInMonth(2025, 2)).toBe(28)
+    expect(dateKey(2026, 8, 3)).toBe('2026-08-03')
+  })
+
   it('treats weekends and custom dates as holidays', () => {
     const august = register('aug', 2026, 8)
     const holidays: Holiday[] = [{ id: 'aug:3', registerId: 'aug', day: 3, title: 'School holiday' }]
@@ -57,6 +77,44 @@ describe('attendance calendar calculations', () => {
     ]
     expect(broughtForwardAttendance(marks, [march, april, may], may, settings, 'e1')).toBe(1)
     expect(currentAttendance(marks, may.id, 'e1')).toBe(1)
+  })
+
+  it('excludes another class and the previous academic year from brought-forward totals', () => {
+    const current = register('current', 2026, 5)
+    const sameYear = register('same-year', 2026, 4)
+    const oldYear = register('old-year', 2026, 3)
+    const otherClass = { ...register('other-class', 2026, 4), classGroupId: 'class-2' }
+    const marks: AttendanceMark[] = [
+      { id: '1', registerId: sameYear.id, enrollmentId: 'e1', day: 1, session: 1, status: 'P' },
+      { id: '2', registerId: oldYear.id, enrollmentId: 'e1', day: 1, session: 1, status: 'P' },
+      { id: '3', registerId: otherClass.id, enrollmentId: 'e1', day: 1, session: 1, status: 'P' },
+    ]
+    expect(
+      broughtForwardAttendance(
+        marks,
+        [current, sameYear, oldYear, otherClass],
+        current,
+        settings,
+        'e1',
+      ),
+    ).toBe(1)
+  })
+
+  it('treats admission and struck-off dates as inclusive attendance boundaries', () => {
+    const enrollment: Enrollment = {
+      id: 'e1',
+      studentId: 's1',
+      classGroupId: 'class-1',
+      rollNumber: '1',
+      admittedOn: '2026-08-10',
+      struckOffOn: '2026-08-20',
+    }
+    expect(isEnrollmentActiveOn(enrollment, '2026-08-09')).toBe(false)
+    expect(isEnrollmentActiveOn(enrollment, '2026-08-10')).toBe(true)
+    expect(isEnrollmentActiveOn(enrollment, '2026-08-20')).toBe(true)
+    expect(isEnrollmentActiveOn(enrollment, '2026-08-21')).toBe(false)
+    expect(isEnrollmentInMonth(enrollment, register('aug', 2026, 8))).toBe(true)
+    expect(isEnrollmentInMonth(enrollment, register('sep', 2026, 9))).toBe(false)
   })
 
   it('derives beginning, end, admitted, and struck-off counts from enrollment dates', () => {
@@ -99,5 +157,59 @@ describe('fee calculations', () => {
       dcf: 250,
     })
     expect(feeGrandTotal(total)).toBe(20500)
+  })
+
+  it('counts installment students from fee columns without including record metadata', () => {
+    const entries: FeeEntry[] = [
+      {
+        id: 'register:e1:1',
+        registerId: 'register',
+        enrollmentId: 'e1',
+        installment: 1,
+        ftf: 10000,
+        ff: 0,
+        arrears: 0,
+        lateCertificate: 0,
+        slc: 0,
+        dcf: 0,
+      },
+      {
+        id: 'register:e2:1',
+        registerId: 'register',
+        enrollmentId: 'e2',
+        installment: 1,
+        ftf: 0,
+        ff: 0,
+        arrears: 0,
+        lateCertificate: 0,
+        slc: 0,
+        dcf: 0,
+      },
+    ]
+    expect(feeGrandTotal(entries[0])).toBe(10000)
+    expect(installmentStudentCount(entries, 'register', 1)).toBe(1)
+  })
+
+  it('indexes and aggregates all installments by enrollment', () => {
+    const entries: FeeEntry[] = [
+      { id: '1', registerId: 'r1', enrollmentId: 'e1', installment: 1, ftf: 1000, ff: 100, arrears: 0, lateCertificate: 0, slc: 0, dcf: 0 },
+      { id: '2', registerId: 'r1', enrollmentId: 'e1', installment: 2, ftf: 500, ff: 0, arrears: 200, lateCertificate: 0, slc: 0, dcf: 0 },
+      { id: '3', registerId: 'r2', enrollmentId: 'e1', installment: 1, ftf: 9999, ff: 0, arrears: 0, lateCertificate: 0, slc: 0, dcf: 0 },
+    ]
+    expect(feesByEnrollment(entries, 'r1').get('e1')).toEqual({
+      ftf: 1500,
+      ff: 100,
+      arrears: 200,
+      lateCertificate: 0,
+      slc: 0,
+      dcf: 0,
+    })
+  })
+
+  it('converts currency input safely and rounds to the nearest minor unit', () => {
+    expect(displayToMinor('12.345')).toBe(1235)
+    expect(displayToMinor('not a number')).toBe(0)
+    expect(displayToMinor('-5')).toBe(0)
+    expect(displayToMinor(9.99)).toBe(999)
   })
 })

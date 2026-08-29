@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { NotePencil, PencilSimple as Edit3, Receipt as ReceiptText } from 'phosphor-svelte'
+  import NotePencil from 'phosphor-svelte/lib/NotePencil'
+  import Edit3 from 'phosphor-svelte/lib/PencilSimple'
+  import ReceiptText from 'phosphor-svelte/lib/Receipt'
   import type { AttendanceState } from '../app-state.svelte'
   import { addFees, feeGrandTotal, feesByEnrollment, minorToDisplay } from '../calculations'
   import { EMPTY_FEES, FEE_FIELDS, type EnrollmentRow } from '../types'

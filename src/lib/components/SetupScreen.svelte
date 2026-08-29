@@ -1,5 +1,8 @@
 <script lang="ts">
-  import { ArrowRight, CloudSlash as CloudOff, Database, ShieldCheck } from 'phosphor-svelte'
+  import ArrowRight from 'phosphor-svelte/lib/ArrowRight'
+  import CloudOff from 'phosphor-svelte/lib/CloudSlash'
+  import Database from 'phosphor-svelte/lib/Database'
+  import ShieldCheck from 'phosphor-svelte/lib/ShieldCheck'
   import type { AttendanceState } from '../app-state.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import Button from './ui/Button.svelte'

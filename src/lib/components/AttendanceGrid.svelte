@@ -1,13 +1,11 @@
 <script lang="ts">
-  import {
-    CalendarX as CalendarOff,
-    CaretDown,
-    CaretLeft as ChevronLeft,
-    CaretRight as ChevronRight,
-    Checks as CheckCheck,
-    Eraser,
-    Info,
-  } from 'phosphor-svelte'
+  import CalendarOff from 'phosphor-svelte/lib/CalendarX'
+  import CaretDown from 'phosphor-svelte/lib/CaretDown'
+  import ChevronLeft from 'phosphor-svelte/lib/CaretLeft'
+  import ChevronRight from 'phosphor-svelte/lib/CaretRight'
+  import CheckCheck from 'phosphor-svelte/lib/Checks'
+  import Eraser from 'phosphor-svelte/lib/Eraser'
+  import Info from 'phosphor-svelte/lib/Info'
   import type { AttendanceState } from '../app-state.svelte'
   import { SvelteMap } from 'svelte/reactivity'
   import {
@@ -234,7 +232,7 @@
           aria-label="Previous date"
           onclick={() => moveSelectedDay(-1)}
         ><ChevronLeft size={20} weight="bold" /></button>
-        <label class="relative min-w-0 flex-1 cursor-pointer text-center">
+        <label class="relative flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col justify-center text-center">
           <span class="block text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/55">Attendance date</span>
           <span class="mt-0.5 flex items-center justify-center gap-1 truncate text-sm font-bold">{selectedDateLabel}<CaretDown size={13} weight="bold" class="shrink-0 text-white/60" /></span>
           <select
@@ -272,7 +270,7 @@
           <div class="mb-1.5 flex items-center justify-between gap-3">
             <p class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Mark everyone</p>
             <button
-              class="min-h-9 rounded-lg px-2.5 text-[10px] font-extrabold text-ink-600 transition active:bg-paper-100 disabled:opacity-40"
+              class="min-h-11 rounded-lg px-2.5 text-[10px] font-extrabold text-ink-600 transition active:bg-paper-100 disabled:opacity-40"
               disabled={isHolidayDay(appState.holidays, register, selectedDay)}
               onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, null)}
             ><Eraser size={14} weight="bold" class="mr-1 inline" />Clear</button>

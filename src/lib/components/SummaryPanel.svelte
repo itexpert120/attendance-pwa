@@ -1,12 +1,10 @@
 <script lang="ts">
-  import {
-    CalendarDots as CalendarDays,
-    ChartLineUp as ChartNoAxesCombined,
-    Student as GraduationCap,
-    UserMinus,
-    UserPlus,
-    Users,
-  } from 'phosphor-svelte'
+  import CalendarDays from 'phosphor-svelte/lib/CalendarDots'
+  import ChartNoAxesCombined from 'phosphor-svelte/lib/ChartLineUp'
+  import GraduationCap from 'phosphor-svelte/lib/Student'
+  import UserMinus from 'phosphor-svelte/lib/UserMinus'
+  import UserPlus from 'phosphor-svelte/lib/UserPlus'
+  import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import {
     addFees,

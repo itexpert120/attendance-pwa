@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { IdentificationCard, Users } from 'phosphor-svelte'
+  import IdentificationCard from 'phosphor-svelte/lib/IdentificationCard'
+  import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import {
     displayToMinor,

@@ -1,11 +1,9 @@
 <script lang="ts">
-  import {
-    ArrowClockwise as RefreshCw,
-    Check,
-    DownloadSimple as Download,
-    WifiSlash as WifiOff,
-    X,
-  } from 'phosphor-svelte'
+  import RefreshCw from 'phosphor-svelte/lib/ArrowClockwise'
+  import Check from 'phosphor-svelte/lib/Check'
+  import Download from 'phosphor-svelte/lib/DownloadSimple'
+  import WifiOff from 'phosphor-svelte/lib/WifiSlash'
+  import X from 'phosphor-svelte/lib/X'
   import { registerSW } from 'virtual:pwa-register'
   import Button from './ui/Button.svelte'
 
