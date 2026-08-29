@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { PencilSimple as Pencil, Plus, Users } from 'phosphor-svelte'
+  import { ArrowLeft, PencilSimple as Pencil, Plus, UserPlus, Users } from 'phosphor-svelte'
   import type { AttendanceState } from '../app-state.svelte'
   import { rowsForClass } from '../calculations'
   import type { EnrollmentRow } from '../types'
@@ -29,6 +29,7 @@
   let struckOffOn = $state('')
   let error = $state('')
   let saving = $state(false)
+  let mobilePanel = $state<'list' | 'form'>('list')
 
   let effectiveClassId = $derived(classGroupId || appState.classGroups[0]?.id || '')
   let rows = $derived(rowsForClass(appState.enrollments, appState.students, effectiveClassId))
@@ -38,6 +39,10 @@
 
   $effect(() => {
     if (open && !classGroupId && appState.classGroups[0]) classGroupId = appState.classGroups[0].id
+  })
+
+  $effect(() => {
+    if (open) mobilePanel = 'list'
   })
 
   function resetForm() {
@@ -59,6 +64,12 @@
     phone = row.student.phone
     admittedOn = row.enrollment.admittedOn
     struckOffOn = row.enrollment.struckOffOn ?? ''
+    mobilePanel = 'form'
+  }
+
+  function startAddStudent() {
+    resetForm()
+    mobilePanel = 'form'
   }
 
   async function saveStudent(event: SubmitEvent) {
@@ -78,6 +89,7 @@
         struckOffOn: struckOffOn || undefined,
       })
       resetForm()
+      mobilePanel = 'list'
     } catch (caught) {
       error = caught instanceof Error ? caught.message : 'Could not save student.'
     } finally {
@@ -105,19 +117,33 @@
 
 <Modal bind:open title="Students & classes" description="Phone numbers stay in student details and are never printed." size="xl">
   <div class="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-    <section class="space-y-4">
+    <section class={`space-y-4 ${mobilePanel === 'list' ? 'block' : 'hidden'} lg:block`}>
       <div class="flex items-end gap-2">
         <SelectField class="min-w-0 flex-1" label="Class & section" bind:value={classGroupId} options={classOptions} />
-        <Button variant="secondary" size="icon" title="Add class" onclick={() => (showClassForm = !showClassForm)}><Plus size={18} /></Button>
+        <Button variant="secondary" size="icon" title="Add class" onclick={() => (showClassForm = !showClassForm)}><Plus size={18} weight="bold" /></Button>
       </div>
       {#if showClassForm}
-        <form class="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-paper-200 bg-paper-100 p-3" onsubmit={addClass}>
+        <form class="grid gap-2 rounded-xl border border-paper-200 bg-paper-100 p-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end" onsubmit={addClass}>
           <TextField label="Class" bind:value={className} required />
           <TextField label="Section" bind:value={section} required />
-          <Button type="submit" size="sm">Add</Button>
+          <Button type="submit" size="sm" class="w-full sm:w-auto">Add</Button>
         </form>
       {/if}
-      <div class="overflow-hidden rounded-xl border border-paper-200">
+      <Button class="w-full sm:hidden" onclick={startAddStudent}><UserPlus size={17} weight="bold" /> Add student</Button>
+
+      <div class="space-y-2 sm:hidden">
+        {#each rows as row (row.enrollment.id)}
+          <button class:opacity-50={Boolean(row.enrollment.struckOffOn)} class="flex min-h-18 w-full items-center gap-3 rounded-2xl border border-paper-200 bg-white p-3 text-left shadow-soft" onclick={() => edit(row)}>
+            <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-paper-100 text-xs font-extrabold text-ink-800">{row.enrollment.rollNumber}</span>
+            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold text-ink-950">{row.student.name}</span><span class="mt-1 block truncate text-[10px] font-semibold text-ink-600">Adm. {row.student.admissionNumber}{row.student.phone ? ` · ${row.student.phone}` : ''}</span></span>
+            <Pencil size={16} weight="bold" class="shrink-0 text-ink-600" />
+          </button>
+        {:else}
+          <div class="rounded-2xl border border-dashed border-paper-200 px-4 py-10 text-center text-sm text-ink-600"><Users size={24} class="mx-auto mb-2 opacity-60" />No students in this class yet.</div>
+        {/each}
+      </div>
+
+      <div class="hidden overflow-hidden rounded-xl border border-paper-200 sm:block">
         <div class="max-h-100 overflow-auto">
           <table class="w-full text-left text-xs">
             <thead class="sticky top-0 bg-paper-100 text-ink-600">
@@ -140,10 +166,13 @@
       </div>
     </section>
 
-    <form class="rounded-xl border border-paper-200 bg-white p-4" onsubmit={saveStudent}>
+    <form class={`rounded-2xl border border-paper-200 bg-white p-4 shadow-soft ${mobilePanel === 'form' ? 'block' : 'hidden'} lg:block`} onsubmit={saveStudent}>
       <div class="mb-4 flex items-center justify-between">
-        <div><p class="text-sm font-bold text-ink-950">{editing ? 'Edit student' : 'Add a student'}</p><p class="mt-0.5 text-[11px] text-ink-600">Admission and roll numbers are required.</p></div>
-        {#if editing}<Button variant="ghost" size="sm" onclick={resetForm}>Cancel edit</Button>{/if}
+        <div class="flex min-w-0 items-center gap-2">
+          <Button class="lg:hidden" variant="ghost" size="icon" title="Back to students" onclick={() => (mobilePanel = 'list')}><ArrowLeft size={18} weight="bold" /></Button>
+          <div><p class="text-sm font-bold text-ink-950">{editing ? 'Edit student' : 'Add a student'}</p><p class="mt-0.5 text-[11px] text-ink-600">Admission and roll numbers are required.</p></div>
+        </div>
+        {#if editing}<Button variant="ghost" size="sm" onclick={() => { resetForm(); mobilePanel = 'list' }}>Cancel edit</Button>{/if}
       </div>
       <div class="grid gap-3 sm:grid-cols-2">
         <TextField label="Admission number" bind:value={admissionNumber} required />

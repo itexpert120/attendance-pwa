@@ -1,4 +1,5 @@
 import { db, exportAttendanceDatabase, inspectAttendanceBackup, restoreAttendanceDatabase } from './db'
+import { SvelteSet } from 'svelte/reactivity'
 import {
   dateKey,
   daysInMonth,
@@ -248,18 +249,20 @@ export class AttendanceState {
     const date = dateKey(register.year, register.month, day)
     if (isHolidayDay(this.holidays, register, day) || !isEnrollmentActiveOn(enrollment, date)) return
     if (status) {
-      await db.attendance.put({
+      const mark: AttendanceMark = {
         id: markId,
         registerId: register.id,
         enrollmentId: enrollment.id,
         day,
         session,
         status,
-      })
+      }
+      await db.attendance.put(mark)
+      this.marks = [...this.marks.filter((item) => item.id !== markId), mark]
     } else {
       await db.attendance.delete(markId)
+      this.marks = this.marks.filter((item) => item.id !== markId)
     }
-    await this.refresh()
   }
 
   async bulkSetMarks(
@@ -291,7 +294,27 @@ export class AttendanceState {
         )
       }
     })
-    await this.refresh()
+    const activeEnrollmentIds = new SvelteSet(rows.map(({ enrollment }) => enrollment.id))
+    const retainedMarks = this.marks.filter(
+      (mark) =>
+        mark.registerId !== register.id ||
+        mark.day !== day ||
+        mark.session !== session ||
+        !activeEnrollmentIds.has(mark.enrollmentId),
+    )
+    this.marks = status
+      ? [
+          ...retainedMarks,
+          ...rows.map(({ enrollment }) => ({
+            id: `${register.id}:${enrollment.id}:${day}:${session}`,
+            registerId: register.id,
+            enrollmentId: enrollment.id,
+            day,
+            session,
+            status,
+          })),
+        ]
+      : retainedMarks
   }
 
   async toggleHoliday(register: Register, day: number) {
@@ -299,13 +322,23 @@ export class AttendanceState {
     const existing = this.holidays.find((holiday) => holiday.id === holidayId)
     if (existing) {
       await db.holidays.delete(holidayId)
+      this.holidays = this.holidays.filter((holiday) => holiday.id !== holidayId)
     } else {
+      const holiday: Holiday = {
+        id: holidayId,
+        registerId: register.id,
+        day,
+        title: 'School holiday',
+      }
       await db.transaction('rw', [db.holidays, db.attendance], async () => {
         await db.attendance.where('[registerId+day]').equals([register.id, day]).delete()
-        await db.holidays.put({ id: holidayId, registerId: register.id, day, title: 'School holiday' })
+        await db.holidays.put(holiday)
       })
+      this.holidays = [...this.holidays, holiday]
+      this.marks = this.marks.filter(
+        (mark) => mark.registerId !== register.id || mark.day !== day,
+      )
     }
-    await this.refresh()
   }
 
   async saveFeeEntries(
@@ -313,18 +346,21 @@ export class AttendanceState {
     enrollmentId: string,
     entries: Array<{ installment: InstallmentNumber; amounts: FeeAmounts }>,
   ) {
+    const nextEntries: FeeEntry[] = entries.map(({ installment, amounts }) => ({
+      id: `${registerId}:${enrollmentId}:${installment}`,
+      registerId,
+      enrollmentId,
+      installment,
+      ...amounts,
+    }))
     await db.transaction('rw', db.feeEntries, async () => {
-      await db.feeEntries.bulkPut(
-        entries.map(({ installment, amounts }) => ({
-          id: `${registerId}:${enrollmentId}:${installment}`,
-          registerId,
-          enrollmentId,
-          installment,
-          ...amounts,
-        })),
-      )
+      await db.feeEntries.bulkPut(nextEntries)
     })
-    await this.refresh()
+    const nextIds = new SvelteSet(nextEntries.map((entry) => entry.id))
+    this.feeEntries = [
+      ...this.feeEntries.filter((entry) => !nextIds.has(entry.id)),
+      ...nextEntries,
+    ]
   }
 
   async saveInstallmentMeta(
@@ -333,24 +369,35 @@ export class AttendanceState {
     rate: number,
     receiverName: string,
   ) {
-    await db.installmentMeta.put({
+    const meta: InstallmentMeta = {
       id: `${registerId}:${installment}`,
       registerId,
       installment,
       rate,
       receiverName: receiverName.trim(),
-    })
-    await this.refresh()
+    }
+    await db.installmentMeta.put(meta)
+    this.installmentMeta = [
+      ...this.installmentMeta.filter((item) => item.id !== meta.id),
+      meta,
+    ]
   }
 
   async saveRemark(registerId: string, enrollmentId: string, text: string) {
     const remarkId = `${registerId}:${enrollmentId}`
     if (text.trim()) {
-      await db.remarks.put({ id: remarkId, registerId, enrollmentId, text: text.trim() })
+      const remark: StudentRemark = {
+        id: remarkId,
+        registerId,
+        enrollmentId,
+        text: text.trim(),
+      }
+      await db.remarks.put(remark)
+      this.remarks = [...this.remarks.filter((item) => item.id !== remarkId), remark]
     } else {
       await db.remarks.delete(remarkId)
+      this.remarks = this.remarks.filter((item) => item.id !== remarkId)
     }
-    await this.refresh()
   }
 
   async requestPersistentStorage() {

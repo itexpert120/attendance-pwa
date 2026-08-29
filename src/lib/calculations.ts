@@ -130,6 +130,18 @@ export function currentAttendance(
   ).length
 }
 
+export function presentAttendanceByEnrollment(
+  marks: AttendanceMark[],
+  registerIds: ReadonlySet<string>,
+) {
+  const totals = new Map<string, number>()
+  for (const mark of marks) {
+    if (mark.status !== 'P' || !registerIds.has(mark.registerId)) continue
+    totals.set(mark.enrollmentId, (totals.get(mark.enrollmentId) ?? 0) + 1)
+  }
+  return totals
+}
+
 export function broughtForwardAttendance(
   marks: AttendanceMark[],
   registers: Register[],
@@ -192,6 +204,23 @@ export function feesForStudent(entries: FeeEntry[], registerId: string, enrollme
       (entry) => entry.registerId === registerId && entry.enrollmentId === enrollmentId,
     ),
   )
+}
+
+export function feesByEnrollment(entries: FeeEntry[], registerId: string) {
+  const totals = new Map<string, FeeAmounts>()
+  for (const entry of entries) {
+    if (entry.registerId !== registerId) continue
+    const current = totals.get(entry.enrollmentId) ?? EMPTY_FEES
+    totals.set(entry.enrollmentId, {
+      ftf: current.ftf + entry.ftf,
+      ff: current.ff + entry.ff,
+      arrears: current.arrears + entry.arrears,
+      lateCertificate: current.lateCertificate + entry.lateCertificate,
+      slc: current.slc + entry.slc,
+      dcf: current.dcf + entry.dcf,
+    })
+  }
+  return totals
 }
 
 export function feesForInstallment(

@@ -9,13 +9,13 @@
   --color-paper-50: #ffffff;
   --color-paper-100: #fafafa;
   --color-paper-200: #e4e4e7;
-  --color-register-50: #fafafa;
-  --color-register-100: #f4f4f5;
-  --color-register-200: #e4e4e7;
-  --color-register-600: #52525b;
-  --color-register-700: #3f3f46;
-  --color-register-800: #27272a;
-  --color-register-900: #18181b;
+  --color-register-50: #f0fdf4;
+  --color-register-100: #dcfce7;
+  --color-register-200: #bbf7d0;
+  --color-register-600: #16a34a;
+  --color-register-700: #15803d;
+  --color-register-800: #166534;
+  --color-register-900: #14532d;
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 14px rgb(0 0 0 / 0.04);
   --shadow-lifted: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.1);
 }

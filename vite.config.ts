@@ -16,7 +16,7 @@ export default defineConfig({
         name: 'Students Attendance Register',
         short_name: 'Attendance',
         description: 'Offline students attendance and fee register for schools.',
-        theme_color: '#18181b',
+        theme_color: '#166534',
         background_color: '#fafafa',
         display: 'standalone',
         orientation: 'any',

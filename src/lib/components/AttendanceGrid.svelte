@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     CalendarX as CalendarOff,
+    CaretDown,
     CaretLeft as ChevronLeft,
     CaretRight as ChevronRight,
     Checks as CheckCheck,
@@ -8,15 +9,16 @@
     Info,
   } from 'phosphor-svelte'
   import type { AttendanceState } from '../app-state.svelte'
+  import { SvelteMap } from 'svelte/reactivity'
   import {
-    broughtForwardAttendance,
-    currentAttendance,
     customHolidayForDay,
     dateKey,
     daysForRegister,
     isEnrollmentActiveOn,
     isHolidayDay,
+    isRegisterEarlierInAcademicYear,
     isWeekend,
+    presentAttendanceByEnrollment,
     weekdayLabel,
   } from '../calculations'
   import type { AttendanceStatus, SessionNumber } from '../types'
@@ -42,6 +44,55 @@
       appState.marks
         .filter((mark) => mark.registerId === register.id)
         .map((mark) => [`${mark.enrollmentId}:${mark.day}:${mark.session}`, mark.status]),
+    ),
+  )
+  let currentPresentByEnrollment = $derived(
+    presentAttendanceByEnrollment(appState.marks, new Set([register.id])),
+  )
+  let previousRegisterIds = $derived(
+    new Set(
+      appState.settings
+        ? appState.registers
+            .filter((item) =>
+              isRegisterEarlierInAcademicYear(item, register, appState.settings!),
+            )
+            .map((item) => item.id)
+        : [],
+    ),
+  )
+  let broughtForwardByEnrollment = $derived(
+    presentAttendanceByEnrollment(appState.marks, previousRegisterIds),
+  )
+  let currentPresentTotal = $derived(
+    [...currentPresentByEnrollment.values()].reduce((sum, value) => sum + value, 0),
+  )
+  let broughtForwardTotal = $derived(
+    [...broughtForwardByEnrollment.values()].reduce((sum, value) => sum + value, 0),
+  )
+  let presentByDaySession = $derived.by(() => {
+    const totals = new SvelteMap<string, number>()
+    for (const mark of appState.marks) {
+      if (mark.registerId !== register.id || mark.status !== 'P') continue
+      const key = `${mark.day}:${mark.session}`
+      totals.set(key, (totals.get(key) ?? 0) + 1)
+    }
+    return totals
+  })
+  let activeRowsForDay = $derived(
+    rows.filter((row) =>
+      isEnrollmentActiveOn(
+        row.enrollment,
+        dateKey(register.year, register.month, selectedDay),
+      ),
+    ),
+  )
+  let markedTimingCount = $derived(
+    activeRowsForDay.reduce(
+      (count, row) =>
+        count +
+        (cellStatus(row.enrollment.id, selectedDay, 1) ? 1 : 0) +
+        (cellStatus(row.enrollment.id, selectedDay, 2) ? 1 : 0),
+      0,
     ),
   )
 
@@ -113,13 +164,7 @@
   }
 
   function attendanceForSession(day: number, session: SessionNumber) {
-    return appState.marks.filter(
-      (mark) =>
-        mark.registerId === register.id &&
-        mark.day === day &&
-        mark.session === session &&
-        mark.status === 'P',
-    ).length
+    return presentByDaySession.get(`${day}:${session}`) ?? 0
   }
 
   function moveSelectedDay(direction: -1 | 1) {
@@ -189,12 +234,12 @@
           aria-label="Previous date"
           onclick={() => moveSelectedDay(-1)}
         ><ChevronLeft size={20} weight="bold" /></button>
-        <label class="min-w-0 flex-1 text-center">
+        <label class="relative min-w-0 flex-1 cursor-pointer text-center">
           <span class="block text-[9px] font-extrabold uppercase tracking-[0.16em] text-white/55">Attendance date</span>
-          <span class="mt-0.5 block truncate text-sm font-bold">{selectedDateLabel}</span>
+          <span class="mt-0.5 flex items-center justify-center gap-1 truncate text-sm font-bold">{selectedDateLabel}<CaretDown size={13} weight="bold" class="shrink-0 text-white/60" /></span>
           <select
             bind:value={selectedDay}
-            class="absolute size-px overflow-hidden opacity-0"
+            class="absolute inset-0 size-full cursor-pointer opacity-0"
             aria-label="Attendance date"
           >
             {#each days as day (day)}<option value={day}>{day} · {weekdayLabel(register.year, register.month, day)}</option>{/each}
@@ -210,7 +255,7 @@
 
       <div class="space-y-4 p-3.5">
         <div>
-          <p class="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Timing</p>
+          <p class="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Bulk timing</p>
           <div class="grid grid-cols-2 gap-1 rounded-xl bg-paper-100 p-1">
           <button
             class={`min-h-11 rounded-lg text-xs font-extrabold transition ${selectedSession === 1 ? 'bg-white text-ink-950 shadow-sm ring-1 ring-paper-200' : 'text-ink-600'}`}
@@ -253,15 +298,15 @@
 
     <div class="overflow-hidden rounded-2xl border border-paper-200 bg-white shadow-soft">
       <div class="grid grid-cols-[minmax(0,1fr)_3.75rem_3.75rem] items-center border-b border-paper-200 bg-paper-100 px-3 py-2.5 text-[9px] font-extrabold uppercase tracking-[0.1em] text-ink-600">
-        <span>Student</span><span class="text-center">First</span><span class="text-center">Second</span>
+        <span>Students <span class="ml-1 normal-case tracking-normal text-register-700">{isHolidayDay(appState.holidays, register, selectedDay) ? 'Holiday' : `${markedTimingCount}/${activeRowsForDay.length * 2} marked`}</span></span><span class="text-center">First</span><span class="text-center">Second</span>
       </div>
       <div class="divide-y divide-paper-200">
         {#each rows as row (row.enrollment.id)}
           {@const date = dateKey(register.year, register.month, selectedDay)}
           {@const inactive = !isEnrollmentActiveOn(row.enrollment, date)}
           {@const holiday = isHolidayDay(appState.holidays, register, selectedDay)}
-          {@const current = currentAttendance(appState.marks, register.id, row.enrollment.id)}
-          {@const brought = appState.settings ? broughtForwardAttendance(appState.marks, appState.registers, register, appState.settings, row.enrollment.id) : 0}
+          {@const current = currentPresentByEnrollment.get(row.enrollment.id) ?? 0}
+          {@const brought = broughtForwardByEnrollment.get(row.enrollment.id) ?? 0}
           <div class="grid grid-cols-[minmax(0,1fr)_3.75rem_3.75rem] items-center gap-1 px-3 py-3">
             <div class="min-w-0 pr-2">
               <div class="flex items-center gap-2"><span class="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-100 text-[10px] font-extrabold text-ink-800">{row.enrollment.rollNumber}</span><p class="truncate text-[13px] font-bold text-ink-950">{row.student.name}</p></div>
@@ -317,8 +362,8 @@
       </thead>
       <tbody>
         {#each rows as row, rowIndex (row.enrollment.id)}
-          {@const current = currentAttendance(appState.marks, register.id, row.enrollment.id)}
-          {@const brought = appState.settings ? broughtForwardAttendance(appState.marks, appState.registers, register, appState.settings, row.enrollment.id) : 0}
+          {@const current = currentPresentByEnrollment.get(row.enrollment.id) ?? 0}
+          {@const brought = broughtForwardByEnrollment.get(row.enrollment.id) ?? 0}
           <tr class="group">
             <td class="sticky left-0 z-20 border-b border-r border-paper-200 bg-white px-3 py-2 text-left font-bold text-ink-950 group-hover:bg-paper-50">{row.student.admissionNumber}</td>
             <td class="sticky left-28 z-20 hidden border-b border-r border-paper-200 bg-white px-2 py-2 font-bold text-ink-950 group-hover:bg-paper-50 md:table-cell md:left-32">{row.enrollment.rollNumber}</td>
@@ -365,9 +410,9 @@
                 <td class="border-r border-t border-paper-200 bg-paper-100 px-1 py-2">{isHolidayDay(appState.holidays, register, day) ? 'H' : attendanceForSession(day, session as SessionNumber)}</td>
               {/each}
             {/each}
-            <td class="border-r border-t border-paper-200 bg-register-50 px-2">{currentAttendance(appState.marks, register.id)}</td>
-            <td class="border-r border-t border-paper-200 bg-register-50 px-2">{appState.settings ? broughtForwardAttendance(appState.marks, appState.registers, register, appState.settings) : 0}</td>
-            <td class="border-t border-paper-200 bg-register-100 px-2">{currentAttendance(appState.marks, register.id) + (appState.settings ? broughtForwardAttendance(appState.marks, appState.registers, register, appState.settings) : 0)}</td>
+            <td class="border-r border-t border-paper-200 bg-register-50 px-2">{currentPresentTotal}</td>
+            <td class="border-r border-t border-paper-200 bg-register-50 px-2">{broughtForwardTotal}</td>
+            <td class="border-t border-paper-200 bg-register-100 px-2">{currentPresentTotal + broughtForwardTotal}</td>
           </tr>
         </tfoot>
       {/if}
