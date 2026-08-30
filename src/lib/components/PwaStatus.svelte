@@ -132,7 +132,6 @@
         inputmode="numeric"
         autocomplete="one-time-code"
         maxlength="4"
-        pattern="[0-9]{4}"
         required
         aria-invalid={installCodeError ? 'true' : undefined}
         aria-describedby={installCodeError ? 'install-code-error' : undefined}
