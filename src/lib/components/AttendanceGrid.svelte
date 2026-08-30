@@ -6,6 +6,7 @@
   import CheckCheck from 'phosphor-svelte/lib/Checks'
   import Eraser from 'phosphor-svelte/lib/Eraser'
   import Info from 'phosphor-svelte/lib/Info'
+  import Lock from 'phosphor-svelte/lib/LockSimple'
   import type { AttendanceState } from '../app-state.svelte'
   import { SvelteMap } from 'svelte/reactivity'
   import {
@@ -13,6 +14,7 @@
     dateKey,
     daysForRegister,
     isEnrollmentActiveOn,
+    isAttendanceDateEditable,
     isHolidayDay,
     isRegisterEarlierInAcademicYear,
     isWeekend,
@@ -22,12 +24,23 @@
   import type { AttendanceStatus, SessionNumber } from '../types'
   import Badge from './ui/Badge.svelte'
   import Button from './ui/Button.svelte'
+  import Modal from './ui/Modal.svelte'
+  import TextField from './ui/TextField.svelte'
 
-  let { state: appState }: { state: AttendanceState } = $props()
+  let {
+    state: appState,
+    onmanagestudents,
+  }: {
+    state: AttendanceState
+    onmanagestudents: () => void
+  } = $props()
 
   let selectedDay = $state(1)
   let selectedSession = $state<SessionNumber>(1)
   let initializedRegisterId = $state('')
+  let holidayReasonOpen = $state(false)
+  let holidayReason = $state('')
+  let holidayError = $state('')
 
   let register = $derived(appState.selectedRegister!)
   let rows = $derived(appState.rowsForRegister(register))
@@ -93,6 +106,10 @@
       0,
     ),
   )
+  let selectedDateEditable = $derived(isAttendanceDateEditable(register, selectedDay))
+  let selectedCustomHoliday = $derived(
+    customHolidayForDay(appState.holidays, register.id, selectedDay),
+  )
 
   $effect(() => {
     if (initializedRegisterId === register.id) return
@@ -105,9 +122,9 @@
   })
 
   const statuses: Array<{ value: AttendanceStatus; label: string; class: string }> = [
-    { value: 'P', label: 'Present', class: 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100' },
-    { value: 'A', label: 'Absent', class: 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100' },
-    { value: 'L', label: 'Leave', class: 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100' },
+    { value: 'P', label: 'Present', class: 'border-register-700 bg-register-100 text-register-900 hover:bg-register-200' },
+    { value: 'A', label: 'Absent', class: 'border-red-400 bg-red-100 text-red-900 hover:bg-red-200' },
+    { value: 'L', label: 'Leave', class: 'border-yellow-400 bg-yellow-100 text-yellow-900 hover:bg-yellow-200' },
   ]
 
   function cellStatus(enrollmentId: string, day: number, session: SessionNumber) {
@@ -122,11 +139,11 @@
   }
 
   function cellClass(status: AttendanceStatus | null, disabled: boolean, holiday: boolean) {
-    if (holiday) return 'border-paper-200 bg-paper-100 text-ink-600'
+    if (holiday) return 'border-red-300 bg-red-100 text-red-900'
     if (disabled) return 'border-paper-200 bg-slate-50 text-slate-300'
-    if (status === 'P') return 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-    if (status === 'A') return 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100'
-    if (status === 'L') return 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100'
+    if (status === 'P') return 'border-register-700 bg-register-100 text-register-900 hover:bg-register-200'
+    if (status === 'A') return 'border-red-400 bg-red-100 text-red-900 hover:bg-red-200'
+    if (status === 'L') return 'border-yellow-400 bg-yellow-100 text-yellow-900 hover:bg-yellow-200'
     return 'border-paper-200 bg-white text-ink-600 hover:bg-register-50'
   }
 
@@ -169,20 +186,40 @@
     selectedDay = Math.max(1, Math.min(days.length, selectedDay + direction))
   }
 
-  async function toggleSelectedHoliday() {
+  async function requestHolidayChange() {
     if (isWeekend(register.year, register.month, selectedDay)) return
-    const existing = customHolidayForDay(appState.holidays, register.id, selectedDay)
-    if (!existing) {
-      const hasMarks = appState.marks.some(
-        (mark) => mark.registerId === register.id && mark.day === selectedDay,
-      )
-      if (hasMarks && !window.confirm('Making this day a holiday will clear its attendance marks. Continue?')) return
+    if (selectedCustomHoliday) {
+      await appState.toggleHoliday(register, selectedDay)
+      return
     }
-    await appState.toggleHoliday(register, selectedDay)
+    const hasMarks = appState.marks.some(
+      (mark) => mark.registerId === register.id && mark.day === selectedDay,
+    )
+    if (hasMarks && !window.confirm('Making this day a holiday will clear its attendance marks. Continue?')) return
+    holidayReason = ''
+    holidayError = ''
+    holidayReasonOpen = true
+  }
+
+  async function saveHoliday(event: SubmitEvent) {
+    event.preventDefault()
+    holidayError = ''
+    if (!holidayReason.trim()) {
+      holidayError = 'Enter a reason for the holiday.'
+      return
+    }
+    await appState.toggleHoliday(register, selectedDay, holidayReason)
+    holidayReasonOpen = false
   }
 </script>
 
 <section class="space-y-3">
+  {#if selectedDateEditable && rows.length > 0 && activeRowsForDay.length === 0}
+    <div class="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+      <div class="flex items-start gap-2"><Info size={16} class="mt-0.5 shrink-0" /><div><p class="text-xs font-extrabold">No students were enrolled on {selectedDateLabel}</p><p class="mt-0.5 text-[10px] font-semibold leading-4 text-amber-900/75">The date is editable, but each student’s admission date is later. Update the admission date to enable these timings.</p></div></div>
+      <Button variant="secondary" size="sm" onclick={onmanagestudents}>Edit student dates</Button>
+    </div>
+  {/if}
   <div class="hidden flex-col gap-3 rounded-xl border border-paper-200 bg-white p-3 shadow-sm md:flex lg:flex-row lg:items-end">
     <div class="grid grid-cols-2 gap-2 sm:flex sm:items-end">
       <label class="grid gap-1 text-xs font-bold text-ink-800">
@@ -204,23 +241,29 @@
           variant="secondary"
           size="sm"
           class={status.class}
-          disabled={isHolidayDay(appState.holidays, register, selectedDay)}
+          disabled={isHolidayDay(appState.holidays, register, selectedDay) || !selectedDateEditable}
           onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, status.value)}
         >
           <CheckCheck size={15} /> All {status.label}
         </Button>
       {/each}
-      <Button variant="ghost" size="sm" disabled={isHolidayDay(appState.holidays, register, selectedDay)} onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, null)}><Eraser size={15} /> Clear</Button>
+      <Button variant="ghost" size="sm" disabled={isHolidayDay(appState.holidays, register, selectedDay) || !selectedDateEditable} onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, null)}><Eraser size={15} /> Clear</Button>
       <Button
-        variant={customHolidayForDay(appState.holidays, register.id, selectedDay) ? 'danger' : 'soft'}
+        variant="secondary"
         size="sm"
-        disabled={isWeekend(register.year, register.month, selectedDay)}
-        onclick={() => void toggleSelectedHoliday()}
+        class="border-red-300 bg-red-50 text-red-900 hover:bg-red-100"
+        disabled={isWeekend(register.year, register.month, selectedDay) || !selectedDateEditable}
+        onclick={() => void requestHolidayChange()}
       >
-        <CalendarOff size={15} /> {customHolidayForDay(appState.holidays, register.id, selectedDay) ? 'Remove holiday' : 'Mark holiday'}
+        <CalendarOff size={15} /> {selectedCustomHoliday ? 'Remove holiday' : 'Mark holiday'}
       </Button>
+      {#if selectedCustomHoliday}<Badge tone="danger">{selectedCustomHoliday.title}</Badge>{/if}
     </div>
-    <Badge tone="info"><Info size={12} /> Tap a cell to cycle P → A → L</Badge>
+    {#if selectedDateEditable}
+      <Badge tone="info"><Info size={12} /> Tap a cell to cycle P → A → L</Badge>
+    {:else}
+      <Badge tone="warning"><Lock size={12} /> View only · edit today or the previous 7 days</Badge>
+    {/if}
   </div>
 
   <div class="space-y-3 md:hidden">
@@ -252,6 +295,12 @@
       </div>
 
       <div class="space-y-4 p-3.5">
+        {#if !selectedDateEditable}
+          <div class="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] font-semibold leading-4 text-amber-900"><Lock size={15} class="mt-0.5 shrink-0" />This date is view only. Attendance can be edited for today and the previous 7 days.</div>
+        {/if}
+        {#if selectedCustomHoliday}
+          <div class="flex items-start gap-2 rounded-xl border border-red-300 bg-red-100 px-3 py-2.5 text-[11px] font-bold leading-4 text-red-950"><CalendarOff size={15} class="mt-0.5 shrink-0" /><span><span class="block text-[9px] font-extrabold uppercase tracking-[0.1em] text-red-800">Holiday reason</span>{selectedCustomHoliday.title}</span></div>
+        {/if}
         <div>
           <p class="mb-1.5 text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Bulk timing</p>
           <div class="grid grid-cols-2 gap-1 rounded-xl bg-paper-100 p-1">
@@ -271,7 +320,7 @@
             <p class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Mark everyone</p>
             <button
               class="min-h-11 rounded-lg px-2.5 text-[10px] font-extrabold text-ink-600 transition active:bg-paper-100 disabled:opacity-40"
-              disabled={isHolidayDay(appState.holidays, register, selectedDay)}
+              disabled={isHolidayDay(appState.holidays, register, selectedDay) || !selectedDateEditable}
               onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, null)}
             ><Eraser size={14} weight="bold" class="mr-1 inline" />Clear</button>
           </div>
@@ -279,7 +328,7 @@
           {#each statuses as status (status.value)}
             <button
               class={`min-h-12 rounded-xl border text-xs font-extrabold transition active:translate-y-px disabled:opacity-40 ${status.class}`}
-              disabled={isHolidayDay(appState.holidays, register, selectedDay)}
+              disabled={isHolidayDay(appState.holidays, register, selectedDay) || !selectedDateEditable}
               onclick={() => void appState.bulkSetMarks(register, selectedDay, selectedSession, status.value)}
             ><span class="block text-sm">{status.value}</span><span class="mt-0.5 block text-[9px] opacity-75">{status.label}</span></button>
           {/each}
@@ -287,10 +336,10 @@
         </div>
 
         <button
-          class={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border text-xs font-extrabold transition active:translate-y-px disabled:opacity-45 ${customHolidayForDay(appState.holidays, register.id, selectedDay) ? 'border-red-300 bg-red-50 text-red-800' : 'border-paper-200 bg-paper-50 text-ink-800'}`}
-          disabled={isWeekend(register.year, register.month, selectedDay)}
-          onclick={() => void toggleSelectedHoliday()}
-        ><CalendarOff size={16} weight="bold" />{isWeekend(register.year, register.month, selectedDay) ? 'Weekend holiday' : customHolidayForDay(appState.holidays, register.id, selectedDay) ? 'Remove school holiday' : 'Mark this date as a holiday'}</button>
+          class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 text-xs font-extrabold text-red-900 transition active:translate-y-px disabled:opacity-45"
+          disabled={isWeekend(register.year, register.month, selectedDay) || !selectedDateEditable}
+          onclick={() => void requestHolidayChange()}
+        ><CalendarOff size={16} weight="bold" />{isWeekend(register.year, register.month, selectedDay) ? 'Weekend holiday' : selectedCustomHoliday ? 'Remove school holiday' : 'Mark this date as a holiday'}</button>
       </div>
     </div>
 
@@ -303,19 +352,20 @@
           {@const date = dateKey(register.year, register.month, selectedDay)}
           {@const inactive = !isEnrollmentActiveOn(row.enrollment, date)}
           {@const holiday = isHolidayDay(appState.holidays, register, selectedDay)}
+          {@const locked = !selectedDateEditable}
           {@const current = currentPresentByEnrollment.get(row.enrollment.id) ?? 0}
           {@const brought = broughtForwardByEnrollment.get(row.enrollment.id) ?? 0}
           <div class="grid grid-cols-[minmax(0,1fr)_3.75rem_3.75rem] items-center gap-1 px-3 py-3">
             <div class="min-w-0 pr-2">
-              <div class="flex items-center gap-2"><span class="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-100 text-[10px] font-extrabold text-ink-800">{row.enrollment.rollNumber}</span><p class="truncate text-[13px] font-bold text-ink-950">{row.student.name}</p></div>
-              <p class="mt-1 truncate pl-9 text-[9px] font-semibold text-ink-600">Adm. {row.student.admissionNumber} · Month {current} · B/F {brought} · Total {current + brought}</p>
+              <div class="flex items-center gap-2">{#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-7 shrink-0 rounded-lg border border-paper-200 object-cover" />{:else}<span class="grid size-7 shrink-0 place-items-center rounded-lg bg-paper-100 text-[10px] font-extrabold text-ink-800">{row.enrollment.rollNumber}</span>{/if}<p class="truncate text-[13px] font-bold text-ink-950">{row.student.name}</p></div>
+              <p class="mt-1 truncate pl-9 text-[9px] font-semibold text-ink-600">{inactive ? `Enrolled from ${row.enrollment.admittedOn}` : `Adm. ${row.student.admissionNumber} · Month ${current} · B/F ${brought} · Total ${current + brought}`}</p>
             </div>
             {#each [1, 2] as session (session)}
               {@const status = cellStatus(row.enrollment.id, selectedDay, session as SessionNumber)}
               <button
-                class={`grid size-13 place-items-center justify-self-center rounded-xl border text-sm font-extrabold outline-none transition active:translate-y-px focus:ring-2 focus:ring-register-600 ${cellClass(status, inactive, holiday)}`}
-                disabled={holiday || inactive}
-                aria-label={`${row.student.name}, ${session === 1 ? 'first' : 'second'} timing, ${holiday ? 'holiday' : inactive ? 'not enrolled' : status ?? 'unmarked'}`}
+                class={`grid size-13 place-items-center justify-self-center rounded-xl border text-sm font-extrabold outline-none transition active:translate-y-px focus:ring-2 focus:ring-register-600 ${cellClass(status, inactive || locked, holiday)}`}
+                disabled={holiday || inactive || locked}
+                aria-label={`${row.student.name}, ${session === 1 ? 'first' : 'second'} timing, ${holiday ? 'holiday' : inactive ? 'not enrolled' : locked ? 'view only' : status ?? 'unmarked'}`}
                 onclick={() => void appState.setMark(register, row.enrollment, selectedDay, session as SessionNumber, cycleStatus(status))}
               >{holiday ? 'H' : inactive ? '–' : status ?? '—'}</button>
             {/each}
@@ -330,7 +380,7 @@
         </div>
       {/if}
     </div>
-    <p class="px-1 text-center text-[10px] font-semibold leading-4 text-ink-600">Tap a timing to cycle Present → Absent → Leave → blank. Past dates remain editable.</p>
+    <p class="px-1 text-center text-[10px] font-semibold leading-4 text-ink-600">Tap a timing to cycle Present → Absent → Leave → blank. Today and the previous 7 days are editable.</p>
   </div>
 
   <div class="hidden overflow-auto rounded-xl border border-paper-200 bg-white shadow-sm md:block" role="region" aria-label="Attendance register table">
@@ -339,11 +389,11 @@
         <tr>
           <th rowspan="2" class="sticky left-0 z-40 min-w-28 border-b border-r border-paper-200 bg-paper-100 px-3 py-2 text-left md:min-w-32">Admission</th>
           <th rowspan="2" class="sticky left-28 z-40 hidden min-w-20 border-b border-r border-paper-200 bg-paper-100 px-2 py-2 md:table-cell md:left-32">Roll</th>
-          <th rowspan="2" class="sticky left-28 z-40 min-w-44 border-b border-r border-paper-200 bg-paper-100 px-3 py-2 text-left md:left-52 md:min-w-52">Student</th>
+          <th rowspan="2" class="sticky left-28 z-40 min-w-44 border-b border-r border-paper-200 bg-paper-100 px-3 py-2 text-left md:left-52 md:min-w-52">Name with parentage</th>
           {#each days as day (day)}
             {@const holiday = isHolidayDay(appState.holidays, register, day)}
-            <th colspan="2" class={`min-w-20 border-b border-r border-paper-200 px-1 py-1.5 ${holiday ? 'bg-slate-200 text-slate-600' : selectedDay === day ? 'bg-register-100 text-register-800' : 'bg-paper-100'}`}>
-              <button class="w-full" onclick={() => (selectedDay = day)}><span class="block text-xs font-black">{day}</span><span class="text-[9px] uppercase">{weekdayLabel(register.year, register.month, day)}</span></button>
+            <th colspan="2" class={`min-w-20 border-b border-r border-paper-200 px-1 py-1.5 ${holiday ? 'bg-red-100 text-red-900' : selectedDay === day ? 'bg-register-100 text-register-800' : 'bg-paper-100'}`}>
+              <button class="w-full" title={customHolidayForDay(appState.holidays, register.id, day)?.title} onclick={() => (selectedDay = day)}><span class="block text-xs font-black">{day}</span><span class="text-[9px] uppercase">{weekdayLabel(register.year, register.month, day)}</span></button>
             </th>
           {/each}
           <th rowspan="2" class="min-w-16 border-b border-r border-paper-200 bg-register-50 px-2">Month</th>
@@ -353,8 +403,8 @@
         <tr>
           {#each days as day (day)}
             {@const holiday = isHolidayDay(appState.holidays, register, day)}
-            <th class={`border-b border-r border-paper-200 px-1 py-1 ${holiday ? 'bg-slate-200' : 'bg-paper-100'}`}>F</th>
-            <th class={`border-b border-r border-paper-200 px-1 py-1 ${holiday ? 'bg-slate-200' : 'bg-paper-100'}`}>S</th>
+            <th class={`border-b border-r border-paper-200 px-1 py-1 ${holiday ? 'bg-red-100 text-red-900' : 'bg-paper-100'}`}>F</th>
+            <th class={`border-b border-r border-paper-200 px-1 py-1 ${holiday ? 'bg-red-100 text-red-900' : 'bg-paper-100'}`}>S</th>
           {/each}
         </tr>
       </thead>
@@ -366,21 +416,22 @@
             <td class="sticky left-0 z-20 border-b border-r border-paper-200 bg-white px-3 py-2 text-left font-bold text-ink-950 group-hover:bg-paper-50">{row.student.admissionNumber}</td>
             <td class="sticky left-28 z-20 hidden border-b border-r border-paper-200 bg-white px-2 py-2 font-bold text-ink-950 group-hover:bg-paper-50 md:table-cell md:left-32">{row.enrollment.rollNumber}</td>
             <td class="sticky left-28 z-20 border-b border-r border-paper-200 bg-white px-3 py-2 text-left group-hover:bg-paper-50 md:left-52">
-              <span class="block max-w-44 truncate font-semibold text-ink-950">{row.student.name}</span>
+              <div class="flex items-center gap-2">{#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-7 shrink-0 rounded-lg border border-paper-200 object-cover" />{/if}<span class="block max-w-44 truncate font-semibold text-ink-950">{row.student.name}</span></div>
               <span class="mt-0.5 block text-[9px] text-ink-600 md:hidden">Roll {row.enrollment.rollNumber}</span>
             </td>
             {#each days as day (day)}
               {@const holiday = isHolidayDay(appState.holidays, register, day)}
               {@const date = dateKey(register.year, register.month, day)}
               {@const inactive = !isEnrollmentActiveOn(row.enrollment, date)}
+              {@const locked = !isAttendanceDateEditable(register, day)}
               {#each [1, 2] as session (session)}
                 {@const status = cellStatus(row.enrollment.id, day, session as SessionNumber)}
                 <td class="border-b border-r border-paper-200 p-0.5">
                   <button
                     data-attendance-cell={`${rowIndex}:${(day - 1) * 2 + session - 1}`}
-                    class={`grid size-8 place-items-center rounded-md border text-[10px] font-black outline-none focus:ring-2 focus:ring-register-600 focus:ring-offset-1 ${cellClass(status, inactive, holiday)}`}
-                    disabled={holiday || inactive}
-                    aria-label={`${row.student.name}, day ${day}, ${session === 1 ? 'first' : 'second'} timing, ${holiday ? 'holiday' : inactive ? 'not enrolled' : status ?? 'unmarked'}`}
+                    class={`grid size-8 place-items-center rounded-md border text-[10px] font-black outline-none focus:ring-2 focus:ring-register-600 focus:ring-offset-1 ${cellClass(status, inactive || locked, holiday)}`}
+                    disabled={holiday || inactive || locked}
+                    aria-label={`${row.student.name}, day ${day}, ${session === 1 ? 'first' : 'second'} timing, ${holiday ? 'holiday' : inactive ? 'not enrolled' : locked ? 'view only' : status ?? 'unmarked'}`}
                     onclick={() => void appState.setMark(register, row.enrollment, day, session as SessionNumber, cycleStatus(status))}
                     onkeydown={(event) => handleCellKeydown(event, rowIndex, (day - 1) * 2 + session - 1, day, session as SessionNumber)}
                   >
@@ -417,3 +468,11 @@
     </table>
   </div>
 </section>
+
+<Modal bind:open={holidayReasonOpen} title="Mark school holiday" description={`Add the reason for ${selectedDateLabel}. Attendance already recorded for this date will be cleared.`} size="sm">
+  <form class="grid gap-4" onsubmit={saveHoliday}>
+    <TextField label="Holiday reason" bind:value={holidayReason} required placeholder="e.g. Independence Day" autocomplete="off" />
+    {#if holidayError}<p class="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">{holidayError}</p>{/if}
+    <Button type="submit" variant="danger" class="w-full"><CalendarOff size={16} /> Mark as holiday</Button>
+  </form>
+</Modal>

@@ -7,7 +7,10 @@ export interface SchoolSettings {
   schoolName: string
   academicYearStartMonth: number
   currencyLabel: string
-  headmasterName: string
+  classInchargeName: string
+  logoDataUrl?: string
+  /** Kept optional so older device backups can be migrated without data loss. */
+  headmasterName?: string
   updatedAt: string
 }
 
@@ -23,6 +26,8 @@ export interface Student {
   admissionNumber: string
   name: string
   phone: string
+  dateOfBirth?: string
+  photoDataUrl?: string
   createdAt: string
 }
 
@@ -93,6 +98,29 @@ export interface StudentRemark {
 export interface EnrollmentRow {
   enrollment: Enrollment
   student: Student
+}
+
+export type ReportPeriodType = 'daily' | 'weekly' | 'monthly'
+
+export interface AttendanceReportStudent extends EnrollmentRow {
+  present: number
+  absent: number
+  leave: number
+  unmarked: number
+  absentSessions: SessionNumber[]
+}
+
+export interface AttendanceReport {
+  type: ReportPeriodType
+  startDay: number
+  endDay: number
+  label: string
+  possible: number
+  present: number
+  absent: number
+  leave: number
+  unmarked: number
+  students: AttendanceReportStudent[]
 }
 
 export const EMPTY_FEES: FeeAmounts = {

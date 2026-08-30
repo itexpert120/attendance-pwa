@@ -140,6 +140,6 @@
 
   <div class="grid gap-4 sm:grid-cols-2">
     <Card class="p-5"><p class="text-xs font-bold uppercase tracking-wider text-ink-600">Receiver’s signature</p><div class="mt-10 border-b border-ink-800"></div><p class="mt-2 text-[11px] text-ink-600">Sign after verifying installment totals</p></Card>
-    <Card class="p-5"><p class="text-xs font-bold uppercase tracking-wider text-ink-600">Headmaster’s signature</p><div class="mt-10 border-b border-ink-800"></div><p class="mt-2 text-[11px] text-ink-600">{appState.settings?.headmasterName || 'Name and signature'}</p></Card>
+    <Card class="p-5"><p class="text-xs font-bold uppercase tracking-wider text-ink-600">Class incharge’s signature</p><div class="mt-10 border-b border-ink-800"></div><p class="mt-2 text-[11px] text-ink-600">{appState.settings?.classInchargeName || 'Name and signature'}</p></Card>
   </div>
 </section>

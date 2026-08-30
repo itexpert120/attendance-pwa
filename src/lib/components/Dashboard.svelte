@@ -11,6 +11,7 @@
   import type { AttendanceState } from '../app-state.svelte'
   import { registerLabel, shortMonthLabel } from '../calculations'
   import RosterManager from './RosterManager.svelte'
+  import LogoPicker from './LogoPicker.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import Button from './ui/Button.svelte'
   import Card from './ui/Card.svelte'
@@ -38,7 +39,8 @@
   let schoolName = $state('')
   let academicYearStartMonth = $state(4)
   let currencyLabel = $state('Rs.')
-  let headmasterName = $state('')
+  let classInchargeName = $state('')
+  let logoDataUrl = $state('')
 
   let classOptions = $derived(appState.classGroups.map((group) => ({ value: group.id, label: `${group.className} · Section ${group.section}` })))
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: index + 1, label: new Intl.DateTimeFormat('en', { month: 'long' }).format(new Date(2024, index, 1)) }))
@@ -53,7 +55,8 @@
     schoolName = appState.settings.schoolName
     academicYearStartMonth = appState.settings.academicYearStartMonth
     currencyLabel = appState.settings.currencyLabel
-    headmasterName = appState.settings.headmasterName
+    classInchargeName = appState.settings.classInchargeName
+    logoDataUrl = appState.settings.logoDataUrl ?? ''
     settingsOpen = true
   }
 
@@ -71,7 +74,7 @@
 
   async function saveSettings(event: SubmitEvent) {
     event.preventDefault()
-    await appState.saveSettings({ schoolName, academicYearStartMonth: Number(academicYearStartMonth), currencyLabel, headmasterName })
+    await appState.saveSettings({ schoolName, academicYearStartMonth: Number(academicYearStartMonth), currencyLabel, classInchargeName, logoDataUrl: logoDataUrl || undefined })
     settingsOpen = false
   }
 
@@ -104,7 +107,7 @@
 <main class="min-h-svh bg-paper-100 text-ink-950 print:hidden">
   <header class="border-b border-paper-200 bg-paper-50/95 backdrop-blur">
     <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5 sm:px-6">
-      <SchoolMark compact />
+      <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
       <div class="min-w-0 flex-1">
         <p class="truncate font-display text-lg font-semibold leading-none tracking-[-0.02em] sm:text-xl">{appState.settings?.schoolName}</p>
         <p class="mt-1 hidden text-[10px] font-bold uppercase tracking-[0.12em] text-ink-600 sm:block">Students attendance register</p>
@@ -176,9 +179,10 @@
 
 <Modal bind:open={settingsOpen} title="School settings" description="These details appear at the top of every printed register.">
   <form class="grid gap-4" onsubmit={saveSettings}>
+    <LogoPicker bind:value={logoDataUrl} />
     <TextField label="School name" bind:value={schoolName} required />
     <div class="grid grid-cols-2 gap-3"><SelectField label="Academic year starts" bind:value={academicYearStartMonth} options={monthOptions} /><TextField label="Currency label" bind:value={currencyLabel} required /></div>
-    <TextField label="Headmaster name" bind:value={headmasterName} />
+    <TextField label="Class incharge name" bind:value={classInchargeName} placeholder="e.g. Ms. Sana Ali" />
     <Button type="submit" class="w-full">Save settings</Button>
   </form>
 </Modal>

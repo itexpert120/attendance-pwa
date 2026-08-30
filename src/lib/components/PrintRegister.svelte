@@ -3,6 +3,7 @@
   import type { AttendanceState } from '../app-state.svelte'
   import {
     addFees,
+    customHolidayForDay,
     dateKey,
     daysForRegister,
     feeGrandTotal,
@@ -23,6 +24,7 @@
     type InstallmentNumber,
     type SessionNumber,
   } from '../types'
+  import SchoolMark from './SchoolMark.svelte'
 
   let { state: appState }: { state: AttendanceState } = $props()
 
@@ -117,6 +119,15 @@
   function attendanceForSession(day: number, session: SessionNumber) {
     return presentByDaySession.get(`${day}:${session}`) ?? 0
   }
+
+  function holidayReasons(dayList: number[]) {
+    return dayList
+      .map((day) => {
+        const holiday = customHolidayForDay(appState.holidays, register.id, day)
+        return holiday ? `${day}: ${holiday.title}` : ''
+      })
+      .filter(Boolean)
+  }
 </script>
 
 <div class="hidden bg-white text-black [print-color-adjust:exact] print:block">
@@ -124,10 +135,13 @@
     <section class="break-after-page p-4">
       <header class="mb-3 border-t-4 border-register-800 pt-2">
         <div class="flex items-end justify-between gap-5">
-          <div>
-            <p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Official monthly record</p>
-            <h1 class="mt-1 text-xl font-black uppercase tracking-wide">Students Attendance Register</h1>
-            <p class="mt-0.5 text-sm font-bold text-ink-800">{appState.settings?.schoolName}</p>
+          <div class="flex items-center gap-3">
+            <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
+            <div>
+              <p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Official monthly record</p>
+              <h1 class="mt-1 text-xl font-black uppercase tracking-wide">Students Attendance Register</h1>
+              <p class="mt-0.5 text-sm font-bold text-ink-800">{appState.settings?.schoolName}</p>
+            </div>
           </div>
           <p class="text-[8px] font-bold text-ink-600">Attendance page {chunkIndex + 1} of {dayChunks.filter((item) => item.length).length}</p>
         </div>
@@ -144,9 +158,9 @@
           <tr>
             <th rowspan="2" class="border border-register-900 p-1">Admission</th>
             <th rowspan="2" class="border border-register-900 p-1">Roll</th>
-            <th rowspan="2" class="min-w-32 border border-register-900 p-1 text-left">Name of student</th>
+            <th rowspan="2" class="min-w-32 border border-register-900 p-1 text-left">Name with parentage</th>
             {#each chunk as day (day)}
-              <th colspan="2" class={`border border-register-900 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-paper-200 text-ink-800' : ''}`}>{day}</th>
+              <th colspan="2" class={`border border-register-900 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>{day}</th>
             {/each}
             {#if chunkIndex === dayChunks.length - 1}
               <th rowspan="2" class="border border-register-900 bg-register-50 p-1">Month</th>
@@ -156,8 +170,8 @@
           </tr>
           <tr>
             {#each chunk as day (day)}
-              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-paper-200 text-ink-800' : ''}`}>F</th>
-              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-paper-200 text-ink-800' : ''}`}>S</th>
+              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>F</th>
+              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>S</th>
             {/each}
           </tr>
         </thead>
@@ -171,7 +185,7 @@
               <td class="border border-ink-800 p-1 text-left font-semibold">{row.student.name}</td>
               {#each chunk as day (day)}
                 {#each [1, 2] as session (session)}
-                  <td class={`border border-ink-800 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-paper-200 font-bold text-ink-600' : ''}`}>
+                  <td class={`border border-ink-800 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 font-bold text-red-900' : ''}`}>
                     {isHolidayDay(appState.holidays, register, day) ? 'H' : !isEnrollmentActiveOn(row.enrollment, dateKey(register.year, register.month, day)) ? '–' : status(row.enrollment.id, day, session as SessionNumber)}
                   </td>
                 {/each}
@@ -203,18 +217,20 @@
         {/if}
       </table>
       <div class="mt-2 flex items-center justify-between text-[7px] text-ink-600"><p>P = Present · A = Absent · L = Leave · H = Holiday</p><p>F = First timing · S = Second timing</p></div>
+      {#if holidayReasons(chunk).length}<p class="mt-1 text-[7px] font-semibold text-red-900">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>{/if}
     </section>
   {/each}
 
   <section class="break-after-page p-4">
-    <header class="mb-3 border-t-4 border-register-800 pt-2">
-      <p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Financial record</p>
+    <header class="mb-3 flex items-center gap-3 border-t-4 border-register-800 pt-2">
+      <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
+      <div><p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Financial record</p>
       <h2 class="mt-1 text-lg font-black uppercase">Fees & Remarks</h2>
-      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p>
+      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p></div>
     </header>
     <table class="w-full border-collapse text-[8px]">
       <thead class="bg-register-100 text-register-900">
-        <tr><th class="border border-register-900 p-1">Adm.</th><th class="border border-register-900 p-1">Roll</th><th class="border border-register-900 p-1 text-left">Student</th>{#each FEE_FIELDS as field (field.key)}<th class="border border-register-900 p-1">{field.shortLabel}</th>{/each}<th class="border border-register-900 bg-register-200 p-1">Total</th><th class="border border-register-900 p-1 text-left">Remarks</th></tr>
+        <tr><th class="border border-register-900 p-1">Adm.</th><th class="border border-register-900 p-1">Roll</th><th class="border border-register-900 p-1 text-left">Name with parentage</th>{#each FEE_FIELDS as field (field.key)}<th class="border border-register-900 p-1">{field.shortLabel}</th>{/each}<th class="border border-register-900 bg-register-200 p-1">Total</th><th class="border border-register-900 p-1 text-left">Remarks</th></tr>
       </thead>
       <tbody>
         {#each rows as row (row.enrollment.id)}
@@ -227,10 +243,11 @@
   </section>
 
   <section class="p-4">
-    <header class="mb-4 border-t-4 border-register-800 pt-2">
-      <p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Monthly close</p>
+    <header class="mb-4 flex items-center gap-3 border-t-4 border-register-800 pt-2">
+      <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
+      <div><p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Monthly close</p>
       <h2 class="mt-1 text-lg font-black uppercase">Monthly Summary</h2>
-      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p>
+      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p></div>
     </header>
 
     <table class="mb-5 w-full border-collapse text-[10px]">
@@ -255,6 +272,6 @@
       <tfoot class="bg-register-100 font-black text-register-900"><tr><th class="border border-register-900 p-1 text-left">Total</th><td class="border border-register-900 p-1 text-center">{totalInstallmentStudents}</td><td class="border border-register-900 p-1 text-right">{minorToDisplay(totalRate)}</td>{#each FEE_FIELDS as field (field.key)}<td class="border border-register-900 p-1 text-right">{minorToDisplay(installmentTotals[field.key])}</td>{/each}<td class="border border-register-900 bg-register-200 p-1 text-right">{minorToDisplay(feeGrandTotal(installmentTotals))}</td><td class="border border-register-900"></td></tr></tfoot>
     </table>
 
-    <div class="mt-14 ml-auto w-64 text-center"><div class="border-b-2 border-register-800"></div><p class="mt-2 text-xs font-black text-register-900">Headmaster’s Signature</p><p class="mt-1 text-[10px] text-ink-600">{appState.settings?.headmasterName || 'Name and signature'}</p></div>
+    <div class="mt-14 ml-auto w-64 text-center"><div class="border-b-2 border-register-800"></div><p class="mt-2 text-xs font-black text-register-900">Class Incharge’s Signature</p><p class="mt-1 text-[10px] text-ink-600">{appState.settings?.classInchargeName || 'Name and signature'}</p></div>
   </section>
 </div>

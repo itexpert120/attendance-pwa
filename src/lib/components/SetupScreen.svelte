@@ -5,6 +5,7 @@
   import ShieldCheck from 'phosphor-svelte/lib/ShieldCheck'
   import type { AttendanceState } from '../app-state.svelte'
   import SchoolMark from './SchoolMark.svelte'
+  import LogoPicker from './LogoPicker.svelte'
   import Button from './ui/Button.svelte'
   import Card from './ui/Card.svelte'
   import SelectField from './ui/SelectField.svelte'
@@ -17,7 +18,8 @@
   let section = $state('')
   let academicYearStartMonth = $state(4)
   let currencyLabel = $state('Rs.')
-  let headmasterName = $state('')
+  let classInchargeName = $state('')
+  let logoDataUrl = $state('')
   let saving = $state(false)
   let error = $state('')
 
@@ -37,7 +39,8 @@
         section,
         academicYearStartMonth,
         currencyLabel,
-        headmasterName,
+        classInchargeName,
+        logoDataUrl: logoDataUrl || undefined,
       })
     } catch (caught) {
       error = caught instanceof Error ? caught.message : 'Could not save your school.'
@@ -51,7 +54,7 @@
   <div class="mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16">
     <section class="px-1 py-3 sm:px-4 lg:py-8">
       <div class="mb-10 flex items-center gap-3">
-        <SchoolMark />
+        <SchoolMark logoDataUrl={logoDataUrl} />
         <div>
           <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-register-700">Students attendance</p>
           <p class="mt-0.5 text-xs font-semibold text-ink-600">A private, offline school register</p>
@@ -85,6 +88,7 @@
         <p class="mt-2 text-xs font-medium leading-5 text-white/70">You can add more classes and change these details later.</p>
       </div>
       <form class="grid gap-4 p-5 sm:p-7" onsubmit={submit}>
+        <LogoPicker bind:value={logoDataUrl} />
         <TextField label="School name" bind:value={schoolName} required placeholder="e.g. Crescent Public School" autocomplete="organization" />
         <div class="grid grid-cols-2 gap-3">
           <TextField label="Class" bind:value={className} required placeholder="e.g. 7" />
@@ -94,7 +98,7 @@
           <SelectField label="Academic year starts" bind:value={academicYearStartMonth} options={months} />
           <TextField label="Currency label" bind:value={currencyLabel} required placeholder="Rs." />
         </div>
-        <TextField label="Headmaster name (optional)" bind:value={headmasterName} autocomplete="name" />
+        <TextField label="Class incharge name (optional)" bind:value={classInchargeName} autocomplete="name" placeholder="e.g. Ms. Sana Ali" />
         {#if error}<p class="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">{error}</p>{/if}
         <Button type="submit" disabled={saving} class="mt-2 w-full">
           {saving ? 'Saving…' : 'Set up attendance register'} <ArrowRight size={17} weight="bold" />

@@ -1,5 +1,6 @@
 import type {
   AttendanceMark,
+  AttendanceReport,
   ClassGroup,
   Enrollment,
   EnrollmentRow,
@@ -8,6 +9,7 @@ import type {
   Holiday,
   InstallmentNumber,
   Register,
+  ReportPeriodType,
   SchoolSettings,
   Student,
 } from './types'
@@ -46,6 +48,21 @@ export function weekdayLabel(year: number, month: number, day: number) {
 export function isWeekend(year: number, month: number, day: number) {
   const weekday = new Date(year, month - 1, day).getDay()
   return weekday === 0 || weekday === 6
+}
+
+export function isAttendanceDateEditable(
+  register: Register,
+  day: number,
+  currentDate = new Date(),
+) {
+  const attendanceDate = Date.UTC(register.year, register.month - 1, day)
+  const today = Date.UTC(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate(),
+  )
+  const daysAgo = Math.floor((today - attendanceDate) / 86_400_000)
+  return daysAgo >= 0 && daysAgo <= 7
 }
 
 export function isEnrollmentActiveOn(enrollment: Enrollment, date: string) {
@@ -181,6 +198,98 @@ export function monthlyMovement(rows: EnrollmentRow[], register: Register) {
         row.enrollment.struckOffOn! >= start &&
         row.enrollment.struckOffOn! <= end,
     ).length,
+  }
+}
+
+export function reportPeriod(
+  register: Register,
+  type: ReportPeriodType,
+  selectedDay: number,
+) {
+  const lastDay = daysInMonth(register.year, register.month)
+  const safeDay = Math.max(1, Math.min(lastDay, selectedDay))
+  if (type === 'monthly') {
+    return {
+      startDay: 1,
+      endDay: lastDay,
+      label: monthLabel(register.month, register.year),
+    }
+  }
+  if (type === 'weekly') {
+    const date = new Date(register.year, register.month - 1, safeDay)
+    const mondayOffset = (date.getDay() + 6) % 7
+    const startDay = Math.max(1, safeDay - mondayOffset)
+    const endDay = Math.min(lastDay, startDay + 6)
+    const formatter = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' })
+    return {
+      startDay,
+      endDay,
+      label: `${formatter.format(new Date(register.year, register.month - 1, startDay))} – ${formatter.format(new Date(register.year, register.month - 1, endDay))}`,
+    }
+  }
+  return {
+    startDay: safeDay,
+    endDay: safeDay,
+    label: new Intl.DateTimeFormat('en', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    }).format(new Date(register.year, register.month - 1, safeDay)),
+  }
+}
+
+export function attendanceReport(
+  rows: EnrollmentRow[],
+  marks: AttendanceMark[],
+  holidays: Holiday[],
+  register: Register,
+  type: ReportPeriodType,
+  selectedDay: number,
+): AttendanceReport {
+  const period = reportPeriod(register, type, selectedDay)
+  const marksByCell = new Map(
+    marks
+      .filter((mark) => mark.registerId === register.id)
+      .map((mark) => [`${mark.enrollmentId}:${mark.day}:${mark.session}`, mark.status]),
+  )
+  const students = rows.map((row) => {
+    let present = 0
+    let absent = 0
+    let leave = 0
+    let unmarked = 0
+    const absentSessions: Array<1 | 2> = []
+
+    for (let day = period.startDay; day <= period.endDay; day += 1) {
+      const date = dateKey(register.year, register.month, day)
+      if (isHolidayDay(holidays, register, day) || !isEnrollmentActiveOn(row.enrollment, date)) {
+        continue
+      }
+      for (const session of [1, 2] as const) {
+        const status = marksByCell.get(`${row.enrollment.id}:${day}:${session}`)
+        if (status === 'P') present += 1
+        else if (status === 'A') {
+          absent += 1
+          if (type === 'daily') absentSessions.push(session)
+        } else if (status === 'L') leave += 1
+        else unmarked += 1
+      }
+    }
+
+    return { ...row, present, absent, leave, unmarked, absentSessions }
+  })
+  return {
+    type,
+    ...period,
+    possible: students.reduce(
+      (total, student) => total + student.present + student.absent + student.leave + student.unmarked,
+      0,
+    ),
+    present: students.reduce((total, student) => total + student.present, 0),
+    absent: students.reduce((total, student) => total + student.absent, 0),
+    leave: students.reduce((total, student) => total + student.leave, 0),
+    unmarked: students.reduce((total, student) => total + student.unmarked, 0),
+    students,
   }
 }
 

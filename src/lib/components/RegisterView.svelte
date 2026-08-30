@@ -5,13 +5,17 @@
   import Banknote from 'phosphor-svelte/lib/CurrencyDollar'
   import DotsThreeVertical from 'phosphor-svelte/lib/DotsThreeVertical'
   import Printer from 'phosphor-svelte/lib/Printer'
+  import FileText from 'phosphor-svelte/lib/FileText'
   import UserPlus from 'phosphor-svelte/lib/UserPlus'
   import UsersRound from 'phosphor-svelte/lib/UsersThree'
   import type { AttendanceState } from '../app-state.svelte'
+  import type { AttendanceReport } from '../types'
   import { monthLabel } from '../calculations'
   import AttendanceGrid from './AttendanceGrid.svelte'
   import FeesGrid from './FeesGrid.svelte'
   import PrintRegister from './PrintRegister.svelte'
+  import PrintReport from './PrintReport.svelte'
+  import ReportsPanel from './ReportsPanel.svelte'
   import RosterManager from './RosterManager.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import SummaryPanel from './SummaryPanel.svelte'
@@ -25,10 +29,11 @@
     onback: () => void
   } = $props()
 
-  let activeTab = $state<'attendance' | 'fees' | 'summary'>('attendance')
+  let activeTab = $state<'attendance' | 'fees' | 'summary' | 'reports'>('attendance')
   let rosterOpen = $state(false)
   let actionsOpen = $state(false)
-  let printing = $state(false)
+  let printMode = $state<'register' | 'report' | null>(null)
+  let reportToPrint = $state<AttendanceReport | null>(null)
   let register = $derived(appState.selectedRegister!)
   let group = $derived(appState.classGroups.find((item) => item.id === register.classGroupId))
 
@@ -36,24 +41,35 @@
     { id: 'attendance' as const, label: 'Attendance', icon: UsersRound },
     { id: 'fees' as const, label: 'Fees & remarks', icon: Banknote },
     { id: 'summary' as const, label: 'Monthly summary', icon: BarChart3 },
+    { id: 'reports' as const, label: 'Reports', icon: FileText },
   ]
 
   function printRegister() {
-    flushSync(() => (printing = true))
+    flushSync(() => (printMode = 'register'))
     window.print()
+  }
+
+  function printReport(report: AttendanceReport) {
+    reportToPrint = report
+    flushSync(() => (printMode = 'report'))
+    window.print()
+  }
+
+  function beforePrint() {
+    if (!printMode) flushSync(() => (printMode = 'register'))
   }
 </script>
 
 <svelte:window
-  onbeforeprint={() => flushSync(() => (printing = true))}
-  onafterprint={() => (printing = false)}
+  onbeforeprint={beforePrint}
+  onafterprint={() => (printMode = null)}
 />
 
 <main class="min-h-svh bg-paper-100 text-ink-950 print:hidden">
   <header class="sticky top-0 z-40 border-b border-paper-200 bg-paper-50/95 backdrop-blur">
     <div class="mx-auto flex max-w-[100rem] items-center gap-2 px-2.5 py-2.5 sm:px-5 sm:py-3">
       <Button variant="ghost" size="icon" title="Back to registers" onclick={onback}><ArrowLeft size={19} /></Button>
-      <div class="hidden sm:block"><SchoolMark compact /></div>
+      <div class="hidden sm:block"><SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} /></div>
       <div class="min-w-0 flex-1">
         <p class="truncate font-display text-lg font-semibold leading-none tracking-[-0.02em]">{appState.settings?.schoolName}</p>
         <p class="mt-1 truncate text-[10px] font-bold text-ink-600">Class {group?.className} · Section {group?.section} · {monthLabel(register.month, register.year)}</p>
@@ -84,13 +100,14 @@
   </header>
 
   <div class="mx-auto max-w-[100rem] px-2.5 py-3 pb-24 sm:px-5 sm:py-5 md:pb-5">
-    {#if activeTab === 'attendance'}<AttendanceGrid state={appState} />
+    {#if activeTab === 'attendance'}<AttendanceGrid state={appState} onmanagestudents={() => (rosterOpen = true)} />
     {:else if activeTab === 'fees'}<FeesGrid state={appState} />
-    {:else}<SummaryPanel state={appState} />{/if}
+    {:else if activeTab === 'summary'}<SummaryPanel state={appState} />
+    {:else}<ReportsPanel state={appState} onprint={printReport} />{/if}
   </div>
 </main>
 
-<nav class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-3 border-t border-paper-200 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgb(0_0_0/0.06)] backdrop-blur md:hidden print:hidden" aria-label="Register sections">
+<nav class="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-paper-200 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_24px_rgb(0_0_0/0.06)] backdrop-blur md:hidden print:hidden" aria-label="Register sections">
   {#each tabs as tab (tab.id)}
     <button
       class={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl px-2 text-[10px] font-extrabold transition ${activeTab === tab.id ? 'text-ink-950' : 'text-ink-600'}`}
@@ -103,5 +120,6 @@
   {/each}
 </nav>
 
-{#if printing}<PrintRegister state={appState} />{/if}
+{#if printMode === 'register'}<PrintRegister state={appState} />
+{:else if printMode === 'report' && reportToPrint}<PrintReport state={appState} report={reportToPrint} />{/if}
 <RosterManager state={appState} bind:open={rosterOpen} />

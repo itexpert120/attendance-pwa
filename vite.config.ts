@@ -6,6 +6,37 @@ import { VitePWA } from 'vite-plugin-pwa'
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            {
+              name: 'phone-number',
+              test: /node_modules[\\/]libphonenumber-js/,
+              priority: 3,
+            },
+            {
+              name: 'offline-data',
+              test: /node_modules[\\/](dexie|dexie-export-import)/,
+              priority: 2,
+            },
+            {
+              name: 'ui-vendor',
+              test: /node_modules[\\/](svelte|bits-ui|phosphor-svelte)/,
+              priority: 2,
+            },
+            {
+              name: 'vendor',
+              test: /node_modules/,
+              priority: 1,
+              maxSize: 450_000,
+            },
+          ],
+        },
+      },
+    },
+  },
   plugins: [
     tailwindcss(),
     svelte(),

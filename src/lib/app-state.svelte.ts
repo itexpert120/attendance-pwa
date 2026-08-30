@@ -3,6 +3,7 @@ import { SvelteSet } from 'svelte/reactivity'
 import {
   dateKey,
   daysInMonth,
+  isAttendanceDateEditable,
   isEnrollmentActiveOn,
   isHolidayDay,
   rowsForClass,
@@ -23,6 +24,7 @@ import type {
   Student,
   StudentRemark,
 } from './types'
+import { normalizePhoneNumber } from './phone'
 
 const now = () => new Date().toISOString()
 const id = () => crypto.randomUUID()
@@ -90,13 +92,30 @@ export class AttendanceState {
       db.installmentMeta.toArray(),
       db.remarks.toArray(),
     ])
-    this.settings = settings ?? null
+    this.settings = settings
+      ? {
+          ...settings,
+          classInchargeName: settings.classInchargeName ?? settings.headmasterName ?? '',
+        }
+      : null
     this.classGroups = classGroups.sort((a, b) =>
       `${a.className}${a.section}`.localeCompare(`${b.className}${b.section}`, undefined, {
         numeric: true,
       }),
     )
-    this.students = students
+    const normalizedStudents = students.map((student) => {
+      try {
+        const normalizedPhone = normalizePhoneNumber(student.phone)
+        return normalizedPhone === student.phone ? student : { ...student, phone: normalizedPhone }
+      } catch {
+        return student
+      }
+    })
+    const migratedStudents = normalizedStudents.filter(
+      (student, index) => student.phone !== students[index]?.phone,
+    )
+    if (migratedStudents.length) await db.students.bulkPut(migratedStudents)
+    this.students = normalizedStudents
     this.enrollments = enrollments
     this.registers = registers.sort(
       (a, b) => b.year * 12 + b.month - (a.year * 12 + a.month),
@@ -114,7 +133,8 @@ export class AttendanceState {
     section: string
     academicYearStartMonth: number
     currencyLabel: string
-    headmasterName: string
+    classInchargeName: string
+    logoDataUrl?: string
   }) {
     const group: ClassGroup = {
       id: id(),
@@ -127,7 +147,8 @@ export class AttendanceState {
       schoolName: input.schoolName.trim(),
       academicYearStartMonth: input.academicYearStartMonth,
       currencyLabel: input.currencyLabel.trim() || 'Rs.',
-      headmasterName: input.headmasterName.trim(),
+      classInchargeName: input.classInchargeName.trim(),
+      logoDataUrl: input.logoDataUrl,
       updatedAt: now(),
     }
     await db.transaction('rw', [db.settings, db.classGroups], async () => {
@@ -161,6 +182,50 @@ export class AttendanceState {
     await this.refresh()
   }
 
+  async duplicateClass(
+    sourceClassGroupId: string,
+    className: string,
+    section: string,
+    admittedOn: string,
+  ) {
+    const normalizedClass = className.trim()
+    const normalizedSection = section.trim()
+    if (!normalizedClass || !normalizedSection) throw new Error('Class and section are required.')
+    const exists = this.classGroups.some(
+      (group) =>
+        group.className.toLowerCase() === normalizedClass.toLowerCase() &&
+        group.section.toLowerCase() === normalizedSection.toLowerCase(),
+    )
+    if (exists) throw new Error('That class and section already exists.')
+    const source = this.classGroups.find((group) => group.id === sourceClassGroupId)
+    if (!source) throw new Error('Select a class to duplicate.')
+
+    const group: ClassGroup = {
+      id: id(),
+      className: normalizedClass,
+      section: normalizedSection,
+      createdAt: now(),
+    }
+    const sourceEnrollments = this.enrollments.filter(
+      (enrollment) =>
+        enrollment.classGroupId === sourceClassGroupId &&
+        isEnrollmentActiveOn(enrollment, admittedOn),
+    )
+    const duplicatedEnrollments: Enrollment[] = sourceEnrollments.map((enrollment) => ({
+      id: id(),
+      studentId: enrollment.studentId,
+      classGroupId: group.id,
+      rollNumber: enrollment.rollNumber,
+      admittedOn,
+    }))
+    await db.transaction('rw', [db.classGroups, db.enrollments], async () => {
+      await db.classGroups.add(group)
+      if (duplicatedEnrollments.length) await db.enrollments.bulkAdd(duplicatedEnrollments)
+    })
+    await this.refresh()
+    return group
+  }
+
   async saveStudent(input: {
     studentId?: string
     enrollmentId?: string
@@ -169,11 +234,14 @@ export class AttendanceState {
     rollNumber: string
     name: string
     phone: string
+    dateOfBirth?: string
+    photoDataUrl?: string
     admittedOn: string
     struckOffOn?: string
   }) {
     const admissionNumber = input.admissionNumber.trim()
     const rollNumber = input.rollNumber.trim()
+    const phone = normalizePhoneNumber(input.phone)
     const duplicateAdmission = this.students.find(
       (student) =>
         student.admissionNumber.toLowerCase() === admissionNumber.toLowerCase() &&
@@ -196,7 +264,9 @@ export class AttendanceState {
       id: input.studentId ?? id(),
       admissionNumber,
       name: input.name.trim(),
-      phone: input.phone.trim(),
+      phone,
+      dateOfBirth: input.dateOfBirth || undefined,
+      photoDataUrl: input.photoDataUrl || undefined,
       createdAt: this.students.find((item) => item.id === input.studentId)?.createdAt ?? now(),
     }
     const enrollment: Enrollment = {
@@ -245,6 +315,7 @@ export class AttendanceState {
     session: SessionNumber,
     status: AttendanceStatus | null,
   ) {
+    if (!isAttendanceDateEditable(register, day)) return
     const markId = `${register.id}:${enrollment.id}:${day}:${session}`
     const date = dateKey(register.year, register.month, day)
     if (isHolidayDay(this.holidays, register, day) || !isEnrollmentActiveOn(enrollment, date)) return
@@ -271,6 +342,7 @@ export class AttendanceState {
     session: SessionNumber,
     status: AttendanceStatus | null,
   ) {
+    if (!isAttendanceDateEditable(register, day)) return
     if (isHolidayDay(this.holidays, register, day)) return
     const date = dateKey(register.year, register.month, day)
     const rows = this.rowsForRegister(register).filter((row) =>
@@ -317,7 +389,8 @@ export class AttendanceState {
       : retainedMarks
   }
 
-  async toggleHoliday(register: Register, day: number) {
+  async toggleHoliday(register: Register, day: number, reason = 'School holiday') {
+    if (!isAttendanceDateEditable(register, day)) return
     const holidayId = `${register.id}:${day}`
     const existing = this.holidays.find((holiday) => holiday.id === holidayId)
     if (existing) {
@@ -328,7 +401,7 @@ export class AttendanceState {
         id: holidayId,
         registerId: register.id,
         day,
-        title: 'School holiday',
+        title: reason.trim() || 'School holiday',
       }
       await db.transaction('rw', [db.holidays, db.attendance], async () => {
         await db.attendance.where('[registerId+day]').equals([register.id, day]).delete()

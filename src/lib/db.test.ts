@@ -19,7 +19,7 @@ describe('offline database backup', () => {
       schoolName: 'Offline School',
       academicYearStartMonth: 4,
       currencyLabel: 'Rs.',
-      headmasterName: 'Headmaster',
+      classInchargeName: 'Class Incharge',
       updatedAt: '2026-08-29T00:00:00.000Z',
     })
     await db.students.put({
@@ -27,6 +27,8 @@ describe('offline database backup', () => {
       admissionNumber: 'A-001',
       name: 'Test Student',
       phone: '+92 300 0000000',
+      dateOfBirth: '2014-05-12',
+      photoDataUrl: 'data:image/png;base64,dGVzdA==',
       createdAt: '2026-08-29T00:00:00.000Z',
     })
     await db.classGroups.put({
@@ -79,6 +81,8 @@ describe('offline database backup', () => {
 
     expect((await db.settings.get('school'))?.schoolName).toBe('Offline School')
     expect((await db.students.get('student-1'))?.phone).toBe('+92 300 0000000')
+    expect((await db.students.get('student-1'))?.dateOfBirth).toBe('2014-05-12')
+    expect((await db.students.get('student-1'))?.photoDataUrl).toContain('data:image/png')
     expect((await db.attendance.get('register-1:enrollment-1:3:1'))?.status).toBe('P')
     expect((await db.feeEntries.get('register-1:enrollment-1:1'))?.ftf).toBe(10000)
   })

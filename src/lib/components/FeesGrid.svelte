@@ -81,7 +81,7 @@
         <tr>
           <th class="sticky left-0 z-40 min-w-24 border-b border-r border-paper-200 bg-paper-100 px-3 py-3 text-left">Admission</th>
           <th class="sticky left-24 z-40 min-w-16 border-b border-r border-paper-200 bg-paper-100 px-2 py-3 text-center">Roll</th>
-          <th class="sticky left-40 z-40 min-w-48 border-b border-r border-paper-200 bg-paper-100 px-3 py-3 text-left">Student</th>
+          <th class="sticky left-40 z-40 min-w-48 border-b border-r border-paper-200 bg-paper-100 px-3 py-3 text-left">Name with parentage</th>
           {#each FEE_FIELDS as field (field.key)}<th class="min-w-28 border-b border-r border-paper-200 px-3 py-3">{field.shortLabel}</th>{/each}
           <th class="min-w-28 border-b border-r border-paper-200 bg-register-100 px-3 py-3">Total</th>
           <th class="min-w-56 border-b border-paper-200 px-3 py-3 text-left">Remarks</th>

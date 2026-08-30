@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addFees,
   academicYearStartYear,
+  attendanceReport,
   broughtForwardAttendance,
   currentAttendance,
   dateKey,
@@ -10,6 +11,7 @@ import {
   feeGrandTotal,
   feesByEnrollment,
   installmentStudentCount,
+  isAttendanceDateEditable,
   isEnrollmentActiveOn,
   isEnrollmentInMonth,
   isHolidayDay,
@@ -31,7 +33,7 @@ const settings: SchoolSettings = {
   schoolName: 'Test School',
   academicYearStartMonth: 4,
   currencyLabel: 'Rs.',
-  headmasterName: '',
+  classInchargeName: '',
   updatedAt: '',
 }
 
@@ -53,6 +55,15 @@ describe('attendance calendar calculations', () => {
     expect(daysInMonth(2024, 2)).toBe(29)
     expect(daysInMonth(2025, 2)).toBe(28)
     expect(dateKey(2026, 8, 3)).toBe('2026-08-03')
+  })
+
+  it('allows attendance edits only for today and the previous seven dates', () => {
+    const august = register('aug', 2026, 8)
+    const currentDate = new Date(2026, 7, 30)
+    expect(isAttendanceDateEditable(august, 30, currentDate)).toBe(true)
+    expect(isAttendanceDateEditable(august, 23, currentDate)).toBe(true)
+    expect(isAttendanceDateEditable(august, 22, currentDate)).toBe(false)
+    expect(isAttendanceDateEditable(august, 31, currentDate)).toBe(false)
   })
 
   it('treats weekends and custom dates as holidays', () => {
@@ -139,6 +150,28 @@ describe('attendance calendar calculations', () => {
       month,
     )
     expect(movement).toEqual({ beginning: 2, end: 2, admitted: 1, struckOff: 1 })
+  })
+
+  it('builds daily reports with explicit absentees and unmarked timings', () => {
+    const august = register('aug', 2026, 8)
+    const row: EnrollmentRow = {
+      student: { id: 's1', admissionNumber: 'A1', name: 'Ayaan S/O Awaan', phone: '0300', createdAt: '' },
+      enrollment: { id: 'e1', studentId: 's1', classGroupId: 'class-1', rollNumber: '1', admittedOn: '2026-08-01' },
+    }
+    const marks: AttendanceMark[] = [
+      { id: '1', registerId: 'aug', enrollmentId: 'e1', day: 3, session: 1, status: 'A' },
+    ]
+    const report = attendanceReport([row], marks, [], august, 'daily', 3)
+    expect(report.label).toContain('August 3, 2026')
+    expect(report.absent).toBe(1)
+    expect(report.unmarked).toBe(1)
+    expect(report.students[0]?.absentSessions).toEqual([1])
+  })
+
+  it('creates a Monday-to-Sunday weekly report within the register month', () => {
+    const august = register('aug', 2026, 8)
+    const report = attendanceReport([], [], [], august, 'weekly', 12)
+    expect([report.startDay, report.endDay]).toEqual([10, 16])
   })
 })
 
