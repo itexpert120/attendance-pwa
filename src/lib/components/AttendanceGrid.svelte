@@ -10,6 +10,7 @@
   import type { AttendanceState } from '../app-state.svelte'
   import { SvelteMap } from 'svelte/reactivity'
   import {
+    ATTENDANCE_MARK_VALUE,
     customHolidayForDay,
     dateKey,
     daysForRegister,
@@ -85,7 +86,7 @@
     for (const mark of appState.marks) {
       if (mark.registerId !== register.id || mark.status !== 'P') continue
       const key = `${mark.day}:${mark.session}`
-      totals.set(key, (totals.get(key) ?? 0) + 1)
+      totals.set(key, (totals.get(key) ?? 0) + ATTENDANCE_MARK_VALUE)
     }
     return totals
   })

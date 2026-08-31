@@ -15,6 +15,8 @@ import type {
 } from './types'
 import { EMPTY_FEES } from './types'
 
+export const ATTENDANCE_MARK_VALUE = 0.5
+
 export const pad = (value: number) => String(value).padStart(2, '0')
 
 export function dateKey(year: number, month: number, day: number) {
@@ -144,7 +146,7 @@ export function currentAttendance(
       mark.registerId === registerId &&
       mark.status === 'P' &&
       (!enrollmentId || mark.enrollmentId === enrollmentId),
-  ).length
+  ).length * ATTENDANCE_MARK_VALUE
 }
 
 export function presentAttendanceByEnrollment(
@@ -154,7 +156,10 @@ export function presentAttendanceByEnrollment(
   const totals = new Map<string, number>()
   for (const mark of marks) {
     if (mark.status !== 'P' || !registerIds.has(mark.registerId)) continue
-    totals.set(mark.enrollmentId, (totals.get(mark.enrollmentId) ?? 0) + 1)
+    totals.set(
+      mark.enrollmentId,
+      (totals.get(mark.enrollmentId) ?? 0) + ATTENDANCE_MARK_VALUE,
+    )
   }
   return totals
 }
@@ -176,7 +181,7 @@ export function broughtForwardAttendance(
       earlierRegisterIds.has(mark.registerId) &&
       mark.status === 'P' &&
       (!enrollmentId || mark.enrollmentId === enrollmentId),
-  ).length
+  ).length * ATTENDANCE_MARK_VALUE
 }
 
 export function workingTimings(register: Register, holidays: Holiday[]) {
@@ -267,12 +272,12 @@ export function attendanceReport(
       }
       for (const session of [1, 2] as const) {
         const status = marksByCell.get(`${row.enrollment.id}:${day}:${session}`)
-        if (status === 'P') present += 1
+        if (status === 'P') present += ATTENDANCE_MARK_VALUE
         else if (status === 'A') {
-          absent += 1
+          absent += ATTENDANCE_MARK_VALUE
           if (type === 'daily') absentSessions.push(session)
-        } else if (status === 'L') leave += 1
-        else unmarked += 1
+        } else if (status === 'L') leave += ATTENDANCE_MARK_VALUE
+        else unmarked += ATTENDANCE_MARK_VALUE
       }
     }
 

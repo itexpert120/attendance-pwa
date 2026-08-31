@@ -2,6 +2,7 @@
   import { SvelteMap } from 'svelte/reactivity'
   import type { AttendanceState } from '../app-state.svelte'
   import {
+    ATTENDANCE_MARK_VALUE,
     addFees,
     customHolidayForDay,
     dateKey,
@@ -77,7 +78,7 @@
     for (const mark of appState.marks) {
       if (mark.registerId !== register.id || mark.status !== 'P') continue
       const key = `${mark.day}:${mark.session}`
-      totals.set(key, (totals.get(key) ?? 0) + 1)
+      totals.set(key, (totals.get(key) ?? 0) + ATTENDANCE_MARK_VALUE)
     }
     return totals
   })
@@ -216,7 +217,7 @@
           </tfoot>
         {/if}
       </table>
-      <div class="mt-2 flex items-center justify-between text-[7px] text-ink-600"><p>P = Present · A = Absent · L = Leave · H = Holiday</p><p>F = First timing · S = Second timing</p></div>
+      <div class="mt-2 flex items-center justify-between text-[7px] text-ink-600"><p>P = Present · A = Absent · L = Leave · H = Holiday</p><p>F = First timing · S = Second timing · Each timing = 0.5</p></div>
       {#if holidayReasons(chunk).length}<p class="mt-1 text-[7px] font-semibold text-red-900">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>{/if}
     </section>
   {/each}
@@ -255,7 +256,7 @@
         <tr><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Students at beginning</th><td class="border border-register-900 p-2 font-bold">{movement.beginning}</td><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Students at end</th><td class="border border-register-900 p-2 font-bold">{movement.end}</td></tr>
         <tr><th class="border border-register-900 bg-register-50 p-2 text-left">Admitted during month</th><td class="border border-register-900 p-2 font-bold">{movement.admitted}</td><th class="border border-register-900 bg-register-50 p-2 text-left">Struck off during month</th><td class="border border-register-900 p-2 font-bold">{movement.struckOff}</td></tr>
         <tr><th class="border border-register-900 bg-register-50 p-2 text-left">Total timings</th><td class="border border-register-900 p-2 font-bold">{timings}</td><th class="border border-register-900 bg-register-50 p-2 text-left">Attendance in month</th><td class="border border-register-900 p-2 font-bold">{monthAttendance}</td></tr>
-        <tr><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Academic year attendance</th><td class="border border-register-900 p-2 font-bold">{monthAttendance + previousAttendance}</td><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Average attendance</th><td class="border border-register-900 p-2 font-bold">{timings ? (monthAttendance / timings).toFixed(2) : '0.00'}</td></tr>
+        <tr><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Academic year attendance</th><td class="border border-register-900 p-2 font-bold">{monthAttendance + previousAttendance}</td><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Average attendance</th><td class="border border-register-900 p-2 font-bold">{timings ? (monthAttendance / (timings * ATTENDANCE_MARK_VALUE)).toFixed(2) : '0.00'}</td></tr>
       </tbody>
     </table>
 

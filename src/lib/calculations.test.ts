@@ -86,8 +86,8 @@ describe('attendance calendar calculations', () => {
       { id: '3', registerId: 'may', enrollmentId: 'e1', day: 1, session: 1, status: 'P' },
       { id: '4', registerId: 'mar', enrollmentId: 'e1', day: 1, session: 1, status: 'P' },
     ]
-    expect(broughtForwardAttendance(marks, [march, april, may], may, settings, 'e1')).toBe(1)
-    expect(currentAttendance(marks, may.id, 'e1')).toBe(1)
+    expect(broughtForwardAttendance(marks, [march, april, may], may, settings, 'e1')).toBe(0.5)
+    expect(currentAttendance(marks, may.id, 'e1')).toBe(0.5)
   })
 
   it('excludes another class and the previous academic year from brought-forward totals', () => {
@@ -108,7 +108,7 @@ describe('attendance calendar calculations', () => {
         settings,
         'e1',
       ),
-    ).toBe(1)
+    ).toBe(0.5)
   })
 
   it('treats admission and struck-off dates as inclusive attendance boundaries', () => {
@@ -163,8 +163,9 @@ describe('attendance calendar calculations', () => {
     ]
     const report = attendanceReport([row], marks, [], august, 'daily', 3)
     expect(report.label).toContain('August 3, 2026')
-    expect(report.absent).toBe(1)
-    expect(report.unmarked).toBe(1)
+    expect(report.absent).toBe(0.5)
+    expect(report.unmarked).toBe(0.5)
+    expect(report.possible).toBe(1)
     expect(report.students[0]?.absentSessions).toEqual([1])
   })
 

@@ -203,7 +203,7 @@
   <Card class="overflow-hidden">
     <div class="border-b border-paper-200 px-4 py-3">
       <h2 class="text-sm font-extrabold text-ink-950">Student attendance detail</h2>
-      <p class="mt-1 text-[10px] font-semibold text-ink-600">Counts are per timing. Weekends, holidays, and inactive enrollment dates are excluded.</p>
+      <p class="mt-1 text-[10px] font-semibold text-ink-600">Each timing counts as 0.5. Weekends, holidays, and inactive enrollment dates are excluded.</p>
     </div>
     <div class="overflow-auto">
       <table class="w-full min-w-160 text-xs">

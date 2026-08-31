@@ -34,7 +34,7 @@
     <div class="min-w-0 flex-1">
       <p class="text-[9px] font-black uppercase tracking-[0.2em] text-register-800">{report.type} attendance report</p>
       <h1 class="mt-1 text-2xl font-black uppercase tracking-wide">{appState.settings?.schoolName}</h1>
-      <p class="mt-1 text-xs font-bold text-ink-600">Class {group?.className} · Section {group?.section} · {report.label}</p>
+      <p class="mt-1 text-xs font-bold text-ink-600">Class {group?.className} · Section {group?.section} · {report.label} · Each timing = 0.5</p>
     </div>
   </header>
 

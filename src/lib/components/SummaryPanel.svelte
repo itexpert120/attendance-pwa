@@ -7,6 +7,7 @@
   import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import {
+    ATTENDANCE_MARK_VALUE,
     addFees,
     broughtForwardAttendance,
     currentAttendance,
@@ -34,7 +35,9 @@
       ? broughtForwardAttendance(appState.marks, appState.registers, register, appState.settings)
       : 0,
   )
-  let average = $derived(timings ? monthAttendance / timings : 0)
+  let average = $derived(
+    timings ? monthAttendance / (timings * ATTENDANCE_MARK_VALUE) : 0,
+  )
   let installmentTotals = $derived(
     addFees(
       ...([1, 2, 3] as InstallmentNumber[]).map((installment) =>
