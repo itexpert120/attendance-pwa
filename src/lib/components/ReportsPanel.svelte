@@ -3,12 +3,13 @@
   import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank'
   import CalendarDots from 'phosphor-svelte/lib/CalendarDots'
   import ChatText from 'phosphor-svelte/lib/ChatText'
+  import Phone from 'phosphor-svelte/lib/Phone'
   import Printer from 'phosphor-svelte/lib/Printer'
   import WhatsappLogo from 'phosphor-svelte/lib/WhatsappLogo'
   import type { AttendanceState } from '../app-state.svelte'
   import { attendanceReport, dateKey, daysInMonth } from '../calculations'
   import type { AttendanceReport, AttendanceReportStudent, ReportPeriodType } from '../types'
-  import { displayPhoneNumber, normalizePhoneNumber } from '../phone'
+  import { displayPhoneNumber, normalizePhoneNumber, phoneCallHref } from '../phone'
   import Badge from './ui/Badge.svelte'
   import Button from './ui/Button.svelte'
   import Card from './ui/Card.svelte'
@@ -17,9 +18,11 @@
   let {
     state: appState,
     onprint,
+    onprintabsentees,
   }: {
     state: AttendanceState
     onprint: (report: AttendanceReport) => void
+    onprintabsentees: (report: AttendanceReport) => void
   } = $props()
 
   let type = $state<ReportPeriodType>('daily')
@@ -82,6 +85,10 @@
   function openSms(student: AttendanceReportStudent) {
     const phone = normalizePhoneNumber(student.student.phone)
     window.location.href = `sms:${phone}?body=${encodeURIComponent(messageText(student))}`
+  }
+
+  function callStudent(student: AttendanceReportStudent) {
+    window.location.href = phoneCallHref(student.student.phone)
   }
 
   function openWhatsapp(student: AttendanceReportStudent) {
@@ -156,18 +163,26 @@
       <div class="flex flex-col gap-2 border-b border-paper-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div class="flex items-center gap-2"><h2 class="text-sm font-extrabold text-red-950">Absent students</h2><Badge tone={absentees.length ? 'danger' : 'success'}>{absentees.length}</Badge></div>
-          <p class="mt-1 text-[10px] font-semibold leading-4 text-red-900/70">Messages open in your device’s app with the text prefilled. Nothing is sent automatically.</p>
+          <p class="mt-1 text-[10px] font-semibold leading-4 text-red-900/70">Call directly, or open SMS and WhatsApp with the absence message prefilled. Nothing is sent automatically.</p>
         </div>
+        <Button variant="secondary" size="sm" disabled={!absentees.length} onclick={() => onprintabsentees(report)}><Printer size={16} weight="bold" /> Print absentee list</Button>
       </div>
       <div class="divide-y divide-paper-200 bg-white">
         {#each absentees as student (student.enrollment.id)}
           <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-bold text-ink-950">{student.student.name}</p>
-              <p class="mt-0.5 text-[10px] font-semibold text-ink-600">Roll {student.enrollment.rollNumber} · {sessionLabel(student)} · {student.student.phone ? displayPhoneNumber(student.student.phone) : 'No phone number'}</p>
+            <div class="flex min-w-0 items-center gap-3 sm:flex-1">
+              {#if student.student.photoDataUrl}
+                <img src={student.student.photoDataUrl} alt={`${student.student.name} profile`} class="size-12 shrink-0 rounded-xl border border-paper-200 object-cover shadow-sm" />
+              {/if}
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-sm font-bold text-ink-950">{student.student.name}</p>
+                <p class="mt-0.5 text-[10px] font-semibold text-ink-600">Roll {student.enrollment.rollNumber} · Absent for {sessionLabel(student)}</p>
+                <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-ink-600"><span class="inline-flex items-center gap-1"><CalendarBlank size={13} weight="bold" /> {report.label}</span><span>{student.student.phone ? displayPhoneNumber(student.student.phone) : 'No phone number'}</span></p>
+              </div>
             </div>
             {#if hasValidPhone(student.student.phone)}
-              <div class="grid grid-cols-2 gap-2 sm:flex">
+              <div class="grid grid-cols-3 gap-2 sm:flex">
+                <Button variant="secondary" size="sm" onclick={() => callStudent(student)}><Phone size={16} weight="bold" /> Call</Button>
                 <Button variant="secondary" size="sm" onclick={() => openSms(student)}><ChatText size={16} weight="bold" /> SMS</Button>
                 <Button variant="soft" size="sm" onclick={() => openWhatsapp(student)}><WhatsappLogo size={16} weight="bold" /> WhatsApp</Button>
               </div>

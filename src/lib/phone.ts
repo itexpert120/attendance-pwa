@@ -22,3 +22,8 @@ export function displayPhoneNumber(value: string) {
     return value
   }
 }
+
+export function phoneCallHref(value: string) {
+  const phone = normalizePhoneNumber(value)
+  return phone ? `tel:${phone}` : ''
+}

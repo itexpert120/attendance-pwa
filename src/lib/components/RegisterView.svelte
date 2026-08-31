@@ -13,6 +13,7 @@
   import { monthLabel } from '../calculations'
   import AttendanceGrid from './AttendanceGrid.svelte'
   import FeesGrid from './FeesGrid.svelte'
+  import PrintAbsenteeList from './PrintAbsenteeList.svelte'
   import PrintRegister from './PrintRegister.svelte'
   import PrintReport from './PrintReport.svelte'
   import ReportsPanel from './ReportsPanel.svelte'
@@ -32,7 +33,7 @@
   let activeTab = $state<'attendance' | 'fees' | 'summary' | 'reports'>('attendance')
   let rosterOpen = $state(false)
   let actionsOpen = $state(false)
-  let printMode = $state<'register' | 'report' | null>(null)
+  let printMode = $state<'register' | 'report' | 'absentees' | null>(null)
   let reportToPrint = $state<AttendanceReport | null>(null)
   let register = $derived(appState.selectedRegister!)
   let group = $derived(appState.classGroups.find((item) => item.id === register.classGroupId))
@@ -52,6 +53,12 @@
   function printReport(report: AttendanceReport) {
     reportToPrint = report
     flushSync(() => (printMode = 'report'))
+    window.print()
+  }
+
+  function printAbsenteeList(report: AttendanceReport) {
+    reportToPrint = report
+    flushSync(() => (printMode = 'absentees'))
     window.print()
   }
 
@@ -103,7 +110,7 @@
     {#if activeTab === 'attendance'}<AttendanceGrid state={appState} onmanagestudents={() => (rosterOpen = true)} />
     {:else if activeTab === 'fees'}<FeesGrid state={appState} />
     {:else if activeTab === 'summary'}<SummaryPanel state={appState} />
-    {:else}<ReportsPanel state={appState} onprint={printReport} />{/if}
+    {:else}<ReportsPanel state={appState} onprint={printReport} onprintabsentees={printAbsenteeList} />{/if}
   </div>
 </main>
 
@@ -121,5 +128,6 @@
 </nav>
 
 {#if printMode === 'register'}<PrintRegister state={appState} />
-{:else if printMode === 'report' && reportToPrint}<PrintReport state={appState} report={reportToPrint} />{/if}
+{:else if printMode === 'report' && reportToPrint}<PrintReport state={appState} report={reportToPrint} />
+{:else if printMode === 'absentees' && reportToPrint}<PrintAbsenteeList state={appState} report={reportToPrint} />{/if}
 <RosterManager state={appState} bind:open={rosterOpen} />
