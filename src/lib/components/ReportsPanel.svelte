@@ -8,6 +8,7 @@
   import WhatsappLogo from 'phosphor-svelte/lib/WhatsappLogo'
   import type { AttendanceState } from '../app-state.svelte'
   import { attendanceReport, dateKey, daysInMonth } from '../calculations'
+  import { formatAbsenceMessage } from '../messages'
   import type { AttendanceReport, AttendanceReportStudent, ReportPeriodType } from '../types'
   import { displayPhoneNumber, normalizePhoneNumber, phoneCallHref } from '../phone'
   import Badge from './ui/Badge.svelte'
@@ -79,7 +80,16 @@
   function messageText(student: AttendanceReportStudent) {
     const schoolName = appState.settings?.schoolName ?? 'school'
     const incharge = appState.settings?.classInchargeName
-    return `Dear Parent/Guardian, ${student.student.name} was marked absent for ${sessionLabel(student)} on ${report.label} at ${schoolName}. Please contact${incharge ? ` ${incharge}, the class incharge,` : ' the class incharge'} if this is unexpected.`
+    const group = appState.classGroups.find((item) => item.id === register.classGroupId)
+    return formatAbsenceMessage(appState.settings?.absenceMessageTemplate, {
+      student: student.student.name,
+      date: report.label,
+      session: sessionLabel(student),
+      school: schoolName,
+      className: group ? `Class ${group.className}, Section ${group.section}` : 'the class',
+      roll: student.enrollment.rollNumber,
+      incharge: incharge ? `${incharge}, the class incharge` : 'the class incharge',
+    })
   }
 
   function openSms(student: AttendanceReportStudent) {

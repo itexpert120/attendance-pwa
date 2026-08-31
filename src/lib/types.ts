@@ -9,6 +9,8 @@ export interface SchoolSettings {
   currencyLabel: string
   classInchargeName: string
   logoDataUrl?: string
+  /** Optional so backups created before custom messaging remain compatible. */
+  absenceMessageTemplate?: string
   /** Kept optional so older device backups can be migrated without data loss. */
   headmasterName?: string
   updatedAt: string

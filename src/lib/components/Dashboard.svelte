@@ -10,6 +10,7 @@
   import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
   import { registerLabel, shortMonthLabel } from '../calculations'
+  import { DEFAULT_ABSENCE_MESSAGE_TEMPLATE } from '../messages'
   import RosterManager from './RosterManager.svelte'
   import LogoPicker from './LogoPicker.svelte'
   import SchoolMark from './SchoolMark.svelte'
@@ -18,6 +19,7 @@
   import Modal from './ui/Modal.svelte'
   import SelectField from './ui/SelectField.svelte'
   import TextField from './ui/TextField.svelte'
+  import TextareaField from './ui/TextareaField.svelte'
 
   let {
     state: appState,
@@ -41,10 +43,12 @@
   let currencyLabel = $state('Rs.')
   let classInchargeName = $state('')
   let logoDataUrl = $state('')
+  let absenceMessageTemplate = $state(DEFAULT_ABSENCE_MESSAGE_TEMPLATE)
 
   let classOptions = $derived(appState.classGroups.map((group) => ({ value: group.id, label: `${group.className} · Section ${group.section}` })))
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: index + 1, label: new Intl.DateTimeFormat('en', { month: 'long' }).format(new Date(2024, index, 1)) }))
   const yearOptions = Array.from({ length: 9 }, (_, index) => ({ value: new Date().getFullYear() - 4 + index, label: String(new Date().getFullYear() - 4 + index) }))
+  const messageTemplateHelp = 'Available placeholders: {student}, {date}, {session}, {school}, {class}, {roll}, and {incharge}.'
 
   $effect(() => {
     if (!classGroupId && appState.classGroups[0]) classGroupId = appState.classGroups[0].id
@@ -57,6 +61,7 @@
     currencyLabel = appState.settings.currencyLabel
     classInchargeName = appState.settings.classInchargeName
     logoDataUrl = appState.settings.logoDataUrl ?? ''
+    absenceMessageTemplate = appState.settings.absenceMessageTemplate ?? DEFAULT_ABSENCE_MESSAGE_TEMPLATE
     settingsOpen = true
   }
 
@@ -74,7 +79,14 @@
 
   async function saveSettings(event: SubmitEvent) {
     event.preventDefault()
-    await appState.saveSettings({ schoolName, academicYearStartMonth: Number(academicYearStartMonth), currencyLabel, classInchargeName, logoDataUrl: logoDataUrl || undefined })
+    await appState.saveSettings({
+      schoolName,
+      academicYearStartMonth: Number(academicYearStartMonth),
+      currencyLabel,
+      classInchargeName,
+      logoDataUrl: logoDataUrl || undefined,
+      absenceMessageTemplate: absenceMessageTemplate.trim() || DEFAULT_ABSENCE_MESSAGE_TEMPLATE,
+    })
     settingsOpen = false
   }
 
@@ -177,12 +189,21 @@
   </form>
 </Modal>
 
-<Modal bind:open={settingsOpen} title="School settings" description="These details appear at the top of every printed register.">
+<Modal bind:open={settingsOpen} title="School settings" description="Update school details and the message prefilled for absent students.">
   <form class="grid gap-4" onsubmit={saveSettings}>
     <LogoPicker bind:value={logoDataUrl} />
     <TextField label="School name" bind:value={schoolName} required />
     <div class="grid grid-cols-2 gap-3"><SelectField label="Academic year starts" bind:value={academicYearStartMonth} options={monthOptions} /><TextField label="Currency label" bind:value={currencyLabel} required /></div>
     <TextField label="Class incharge name" bind:value={classInchargeName} placeholder="e.g. Ms. Sana Ali" />
+    <div class="border-t border-paper-200 pt-4">
+      <TextareaField
+        label="SMS & WhatsApp absence message"
+        bind:value={absenceMessageTemplate}
+        required
+        maxlength={1000}
+        help={messageTemplateHelp}
+      />
+    </div>
     <Button type="submit" class="w-full">Save settings</Button>
   </form>
 </Modal>
