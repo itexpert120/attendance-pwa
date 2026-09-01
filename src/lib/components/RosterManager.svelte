@@ -193,7 +193,7 @@
 </script>
 
 {#snippet studentEditor(nested = false)}
-  <form class={nested ? '' : 'hidden rounded-2xl border border-paper-200 bg-white p-4 shadow-soft lg:block'} onsubmit={saveStudent}>
+  <form class={nested ? '' : 'hidden min-w-0 rounded-2xl border border-paper-200 bg-white p-4 shadow-soft lg:block'} onsubmit={saveStudent}>
     {#if !nested}
       <div class="mb-4 flex items-center justify-between">
         <div><p class="text-sm font-bold text-ink-950">{editing ? 'Edit student' : 'Add a student'}</p><p class="mt-0.5 text-[11px] text-ink-600">Admission and roll numbers are required.</p></div>
@@ -232,9 +232,9 @@
 {/snippet}
 
 <Modal bind:open title="Students & classes" description="Phone numbers stay in student details and are never printed." size="xl">
-  <div class="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
-    <section class="space-y-4">
-      <div class="flex items-end gap-2">
+  <div class="grid min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+    <section class="min-w-0 space-y-4">
+      <div class="flex min-w-0 items-end gap-2">
         <SelectField class="min-w-0 flex-1" label="Class & section" bind:value={classGroupId} options={classOptions} />
         <Button variant="secondary" size="icon" title="Add class" onclick={() => { showClassForm = !showClassForm; showDuplicateForm = false }}><Plus size={18} weight="bold" /></Button>
         <span class="lg:hidden"><Button variant="secondary" size="icon" title="Duplicate selected class" onclick={openDuplicateModal}><Copy size={18} weight="bold" /></Button></span>
