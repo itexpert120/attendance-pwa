@@ -1,5 +1,5 @@
 import { db, exportAttendanceDatabase, inspectAttendanceBackup, restoreAttendanceDatabase } from './db'
-import { SvelteSet } from 'svelte/reactivity'
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity'
 import {
   dateKey,
   daysInMonth,
@@ -7,11 +7,13 @@ import {
   isEnrollmentActiveOn,
   isHolidayDay,
   rowsForClass,
+  testSummary as calculateTestSummary,
 } from './calculations'
 import type {
   AttendanceMark,
   AttendanceStatus,
   ClassGroup,
+  DailyHomeworkReport,
   Enrollment,
   FeeAmounts,
   FeeEntry,
@@ -23,11 +25,26 @@ import type {
   SessionNumber,
   Student,
   StudentRemark,
+  Subject,
+  TestRecord,
+  TestResult,
+  TestRosterEntry,
+  TestRosterRow,
 } from './types'
 import { normalizePhoneNumber } from './phone'
 
 const now = () => new Date().toISOString()
 const id = () => crypto.randomUUID()
+const normalizeName = (value: string) => value.trim().toLocaleLowerCase()
+const hasAtMostTwoDecimals = (value: number) =>
+  Math.abs(Math.round(value * 100) - value * 100) < 1e-8
+
+type DailyHomeworkInput = Pick<
+  DailyHomeworkReport,
+  'classGroupId' | 'date' | 'inchargeName' | 'parentNote'
+> & {
+  items: Array<{ subjectId: string; details: string }>
+}
 
 export class AttendanceState {
   ready = $state(false)
@@ -44,10 +61,20 @@ export class AttendanceState {
   feeEntries = $state<FeeEntry[]>([])
   installmentMeta = $state<InstallmentMeta[]>([])
   remarks = $state<StudentRemark[]>([])
+  subjects = $state<Subject[]>([])
+  tests = $state<TestRecord[]>([])
+  testRoster = $state<TestRosterEntry[]>([])
+  testResults = $state<TestResult[]>([])
+  dailyHomeworkReports = $state<DailyHomeworkReport[]>([])
   selectedRegisterId = $state<string | null>(null)
+  selectedTestId = $state<string | null>(null)
 
   selectedRegister = $derived(
     this.registers.find((register) => register.id === this.selectedRegisterId) ?? null,
+  )
+
+  selectedTest = $derived(
+    this.tests.find((test) => test.id === this.selectedTestId) ?? null,
   )
 
   async initialize() {
@@ -80,6 +107,11 @@ export class AttendanceState {
       feeEntries,
       installmentMeta,
       remarks,
+      subjects,
+      tests,
+      testRoster,
+      testResults,
+      dailyHomeworkReports,
     ] = await Promise.all([
       db.settings.get('school'),
       db.classGroups.toArray(),
@@ -91,6 +123,11 @@ export class AttendanceState {
       db.feeEntries.toArray(),
       db.installmentMeta.toArray(),
       db.remarks.toArray(),
+      db.subjects.toArray(),
+      db.tests.toArray(),
+      db.testRoster.toArray(),
+      db.testResults.toArray(),
+      db.homeworkReports.toArray(),
     ])
     this.settings = settings
       ? {
@@ -125,6 +162,16 @@ export class AttendanceState {
     this.feeEntries = feeEntries
     this.installmentMeta = installmentMeta
     this.remarks = remarks
+    this.subjects = subjects.sort((a, b) => {
+      if (Boolean(a.archivedAt) !== Boolean(b.archivedAt)) return a.archivedAt ? 1 : -1
+      return a.name.localeCompare(b.name, undefined, { numeric: true })
+    })
+    this.tests = tests.sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+    this.testRoster = testRoster
+    this.testResults = testResults
+    this.dailyHomeworkReports = dailyHomeworkReports.sort(
+      (a, b) => b.date.localeCompare(a.date) || b.updatedAt.localeCompare(a.updatedAt),
+    )
   }
 
   async completeSetup(input: {
@@ -298,6 +345,481 @@ export class AttendanceState {
     await this.refresh()
     this.selectedRegisterId = register.id
     return register
+  }
+
+  async saveSubject(name: string) {
+    const trimmedName = name.trim()
+    const normalizedName = normalizeName(trimmedName)
+    if (!trimmedName) throw new Error('Subject name is required.')
+    const existing = this.subjects.find((subject) => subject.normalizedName === normalizedName)
+    if (existing && !existing.archivedAt) throw new Error('That Subject already exists.')
+
+    const timestamp = now()
+    const subject: Subject = existing
+      ? { ...existing, name: trimmedName, archivedAt: undefined, updatedAt: timestamp }
+      : {
+          id: id(),
+          name: trimmedName,
+          normalizedName,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }
+    await db.subjects.put(subject)
+    await this.refresh()
+    return subject
+  }
+
+  async renameSubject(subjectId: string, name: string) {
+    const subject = this.subjects.find((item) => item.id === subjectId)
+    if (!subject) throw new Error('Subject not found.')
+    const trimmedName = name.trim()
+    const normalizedName = normalizeName(trimmedName)
+    if (!trimmedName) throw new Error('Subject name is required.')
+    if (
+      this.subjects.some(
+        (item) => item.id !== subjectId && item.normalizedName === normalizedName,
+      )
+    ) {
+      throw new Error('That Subject already exists.')
+    }
+    const updated: Subject = {
+      ...subject,
+      name: trimmedName,
+      normalizedName,
+      updatedAt: now(),
+    }
+    await db.subjects.put(updated)
+    await this.refresh()
+    return updated
+  }
+
+  async archiveSubject(subjectId: string) {
+    const subject = this.subjects.find((item) => item.id === subjectId)
+    if (!subject || subject.archivedAt) return
+    await db.subjects.put({ ...subject, archivedAt: now(), updatedAt: now() })
+    await this.refresh()
+  }
+
+  async restoreSubject(subjectId: string) {
+    const subject = this.subjects.find((item) => item.id === subjectId)
+    if (!subject || !subject.archivedAt) return
+    await db.subjects.put({ ...subject, archivedAt: undefined, updatedAt: now() })
+    await this.refresh()
+  }
+
+  async createTest(input: {
+    name: string
+    subjectId: string
+    classGroupId: string
+    date: string
+    totalMarks: number
+  }) {
+    const name = input.name.trim()
+    const normalizedName = normalizeName(name)
+    if (!name || !input.subjectId || !input.classGroupId || !input.date) {
+      throw new Error('Test name, Subject, Class Group, and date are required.')
+    }
+    if (
+      !Number.isFinite(input.totalMarks) ||
+      input.totalMarks <= 0 ||
+      !hasAtMostTwoDecimals(input.totalMarks)
+    ) {
+      throw new Error('Total Marks must be greater than zero, with up to two decimals.')
+    }
+    const subject = this.subjects.find(
+      (item) => item.id === input.subjectId && !item.archivedAt,
+    )
+    if (!subject) throw new Error('Select an active Subject.')
+    if (!this.classGroups.some((group) => group.id === input.classGroupId)) {
+      throw new Error('Select a Class Group.')
+    }
+    const duplicate = this.tests.some(
+      (test) =>
+        test.classGroupId === input.classGroupId &&
+        test.subjectId === input.subjectId &&
+        test.date === input.date &&
+        test.normalizedName === normalizedName,
+    )
+    if (duplicate) throw new Error('That Test already exists for this Class Group and date.')
+    const eligible = this.enrollments.filter(
+      (enrollment) =>
+        enrollment.classGroupId === input.classGroupId &&
+        isEnrollmentActiveOn(enrollment, input.date),
+    )
+    if (!eligible.length) {
+      throw new Error('No students are enrolled in this Class Group on the Test date.')
+    }
+
+    const timestamp = now()
+    const test: TestRecord = {
+      id: id(),
+      name,
+      normalizedName,
+      subjectId: input.subjectId,
+      classGroupId: input.classGroupId,
+      date: input.date,
+      totalMarks: input.totalMarks,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }
+    const roster: TestRosterEntry[] = eligible.map((enrollment) => ({
+      id: `${test.id}:${enrollment.id}`,
+      testId: test.id,
+      enrollmentId: enrollment.id,
+      createdAt: timestamp,
+    }))
+    await db.transaction('rw', [db.tests, db.testRoster], async () => {
+      await db.tests.add(test)
+      await db.testRoster.bulkAdd(roster)
+    })
+    await this.refresh()
+    this.selectedTestId = test.id
+    return test
+  }
+
+  async setTestResult(
+    testId: string,
+    enrollmentId: string,
+    value: { status: 'marks'; marks: number } | { status: 'absent' } | null,
+  ) {
+    const test = this.tests.find((item) => item.id === testId)
+    if (!test) throw new Error('Test not found.')
+    const rosterEntry = this.testRoster.find(
+      (entry) => entry.testId === testId && entry.enrollmentId === enrollmentId,
+    )
+    if (!rosterEntry) throw new Error('Student is not on this Test Roster.')
+    const resultId = `${testId}:${enrollmentId}`
+
+    if (!value) {
+      await db.testResults.delete(resultId)
+      this.testResults = this.testResults.filter((result) => result.id !== resultId)
+      return
+    }
+    if (
+      value.status === 'marks' &&
+      (!Number.isFinite(value.marks) ||
+        value.marks < 0 ||
+        value.marks > test.totalMarks ||
+        !hasAtMostTwoDecimals(value.marks))
+    ) {
+      throw new Error(`Marks must be between 0 and ${test.totalMarks}, with up to two decimals.`)
+    }
+
+    const result: TestResult =
+      value.status === 'marks'
+        ? {
+            id: resultId,
+            testId,
+            enrollmentId,
+            status: 'marks',
+            marks: value.marks,
+            updatedAt: now(),
+          }
+        : {
+            id: resultId,
+            testId,
+            enrollmentId,
+            status: 'absent',
+            updatedAt: now(),
+          }
+    await db.testResults.put(result)
+    this.testResults = [...this.testResults.filter((item) => item.id !== resultId), result]
+  }
+
+  async refreshTestRoster(testId: string) {
+    const test = this.tests.find((item) => item.id === testId)
+    if (!test) throw new Error('Test not found.')
+    if (this.testResults.some((result) => result.testId === testId)) {
+      throw new Error('Refresh the Test Roster before entering results.')
+    }
+    const eligible = this.enrollments.filter(
+      (enrollment) =>
+        enrollment.classGroupId === test.classGroupId &&
+        isEnrollmentActiveOn(enrollment, test.date),
+    )
+    if (!eligible.length) {
+      throw new Error('No students are enrolled in this Class Group on the Test date.')
+    }
+    const timestamp = now()
+    const roster: TestRosterEntry[] = eligible.map((enrollment) => ({
+      id: `${test.id}:${enrollment.id}`,
+      testId: test.id,
+      enrollmentId: enrollment.id,
+      createdAt: timestamp,
+    }))
+    await db.transaction('rw', db.testRoster, async () => {
+      await db.testRoster.where('testId').equals(testId).delete()
+      await db.testRoster.bulkAdd(roster)
+    })
+    await this.refresh()
+  }
+
+  async updateTest(
+    testId: string,
+    input: Pick<TestRecord, 'name' | 'subjectId' | 'classGroupId' | 'date' | 'totalMarks'>,
+  ) {
+    const current = this.tests.find((item) => item.id === testId)
+    if (!current) throw new Error('Test not found.')
+    const name = input.name.trim()
+    const normalizedName = normalizeName(name)
+    if (!name || !input.subjectId || !input.classGroupId || !input.date) {
+      throw new Error('Test name, Subject, Class Group, and date are required.')
+    }
+    if (
+      !Number.isFinite(input.totalMarks) ||
+      input.totalMarks <= 0 ||
+      !hasAtMostTwoDecimals(input.totalMarks)
+    ) {
+      throw new Error('Total Marks must be greater than zero, with up to two decimals.')
+    }
+    const hasResults = this.testResults.some((result) => result.testId === testId)
+    const rosterChanged =
+      input.classGroupId !== current.classGroupId || input.date !== current.date
+    if (hasResults && rosterChanged) {
+      throw new Error('Class Group and date are locked after result entry begins.')
+    }
+    const highestMarks = Math.max(
+      0,
+      ...this.testResults
+        .filter((result) => result.testId === testId && result.status === 'marks')
+        .map((result) => result.marks ?? 0),
+    )
+    if (input.totalMarks < highestMarks) {
+      throw new Error(`Total Marks cannot be below recorded Marks (${highestMarks}).`)
+    }
+    const subject = this.subjects.find((item) => item.id === input.subjectId)
+    if (!subject || (subject.archivedAt && subject.id !== current.subjectId)) {
+      throw new Error('Select an active Subject.')
+    }
+    if (!this.classGroups.some((group) => group.id === input.classGroupId)) {
+      throw new Error('Select a Class Group.')
+    }
+    const duplicate = this.tests.some(
+      (test) =>
+        test.id !== testId &&
+        test.classGroupId === input.classGroupId &&
+        test.subjectId === input.subjectId &&
+        test.date === input.date &&
+        test.normalizedName === normalizedName,
+    )
+    if (duplicate) throw new Error('That Test already exists for this Class Group and date.')
+
+    const updated: TestRecord = {
+      ...current,
+      name,
+      normalizedName,
+      subjectId: input.subjectId,
+      classGroupId: input.classGroupId,
+      date: input.date,
+      totalMarks: input.totalMarks,
+      updatedAt: now(),
+    }
+    if (rosterChanged) {
+      const eligible = this.enrollments.filter(
+        (enrollment) =>
+          enrollment.classGroupId === input.classGroupId &&
+          isEnrollmentActiveOn(enrollment, input.date),
+      )
+      if (!eligible.length) {
+        throw new Error('No students are enrolled in this Class Group on the Test date.')
+      }
+      const timestamp = now()
+      const roster: TestRosterEntry[] = eligible.map((enrollment) => ({
+        id: `${testId}:${enrollment.id}`,
+        testId,
+        enrollmentId: enrollment.id,
+        createdAt: timestamp,
+      }))
+      await db.transaction('rw', [db.tests, db.testRoster], async () => {
+        await db.tests.put(updated)
+        await db.testRoster.where('testId').equals(testId).delete()
+        await db.testRoster.bulkAdd(roster)
+      })
+    } else {
+      await db.tests.put(updated)
+    }
+    await this.refresh()
+    return updated
+  }
+
+  selectTest(testId: string | null) {
+    this.selectedTestId = testId
+  }
+
+  rowsForTest(testId: string): TestRosterRow[] {
+    const enrollmentMap = new SvelteMap(this.enrollments.map((enrollment) => [enrollment.id, enrollment]))
+    const studentMap = new SvelteMap(this.students.map((student) => [student.id, student]))
+    const resultMap = new SvelteMap(
+      this.testResults
+        .filter((result) => result.testId === testId)
+        .map((result) => [result.enrollmentId, result]),
+    )
+    return this.testRoster
+      .filter((entry) => entry.testId === testId)
+      .flatMap<TestRosterRow>((rosterEntry) => {
+        const enrollment = enrollmentMap.get(rosterEntry.enrollmentId)
+        const student = enrollment ? studentMap.get(enrollment.studentId) : undefined
+        return enrollment && student
+          ? [{ rosterEntry, enrollment, student, result: resultMap.get(enrollment.id) }]
+          : []
+      })
+      .sort((a, b) =>
+        a.enrollment.rollNumber.localeCompare(b.enrollment.rollNumber, undefined, {
+          numeric: true,
+        }),
+      )
+  }
+
+  summaryForTest(testId: string) {
+    const test = this.tests.find((item) => item.id === testId)
+    if (!test) return null
+    return calculateTestSummary(test, this.testRoster, this.testResults)
+  }
+
+  async addTestRosterMember(testId: string, enrollmentId: string) {
+    const test = this.tests.find((item) => item.id === testId)
+    const enrollment = this.enrollments.find((item) => item.id === enrollmentId)
+    if (!test || !enrollment) throw new Error('Test or Enrollment not found.')
+    if (enrollment.classGroupId !== test.classGroupId) {
+      throw new Error('Select a Student from this Class Group.')
+    }
+    const rosterId = `${testId}:${enrollmentId}`
+    if (this.testRoster.some((entry) => entry.id === rosterId)) return
+    const entry: TestRosterEntry = {
+      id: rosterId,
+      testId,
+      enrollmentId,
+      createdAt: now(),
+    }
+    await db.testRoster.add(entry)
+    this.testRoster = [...this.testRoster, entry]
+  }
+
+  async removeTestRosterMember(testId: string, enrollmentId: string) {
+    const resultId = `${testId}:${enrollmentId}`
+    if (this.testResults.some((result) => result.id === resultId)) {
+      throw new Error('Clear this Student’s Test Result before removing them.')
+    }
+    await db.testRoster.delete(resultId)
+    this.testRoster = this.testRoster.filter((entry) => entry.id !== resultId)
+  }
+
+  async deleteTest(testId: string) {
+    const test = this.tests.find((item) => item.id === testId)
+    if (!test) return
+    await db.transaction('rw', [db.tests, db.testRoster, db.testResults], async () => {
+      await db.tests.delete(testId)
+      await db.testRoster.where('testId').equals(testId).delete()
+      await db.testResults.where('testId').equals(testId).delete()
+    })
+    if (this.selectedTestId === testId) this.selectedTestId = null
+    await this.refresh()
+  }
+
+  private validateDailyHomeworkInput(
+    input: DailyHomeworkInput,
+    current?: DailyHomeworkReport,
+  ): Omit<DailyHomeworkReport, 'id' | 'createdAt' | 'updatedAt'> {
+    const inchargeName = input.inchargeName.trim()
+    const parentNote = input.parentNote.trim()
+    const parsedDate = Date.parse(`${input.date}T00:00:00Z`)
+    const normalizedDate = Number.isNaN(parsedDate)
+      ? ''
+      : new SvelteDate(parsedDate).toISOString().slice(0, 10)
+    if (
+      !input.classGroupId ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(input.date) ||
+      Number.isNaN(parsedDate) ||
+      normalizedDate !== input.date ||
+      !inchargeName ||
+      !parentNote
+    ) {
+      throw new Error('Class Group, date, incharge, and Parent Note are required.')
+    }
+    if (!this.classGroups.some((group) => group.id === input.classGroupId)) {
+      throw new Error('Select a Class Group.')
+    }
+    if (!input.items.length) throw new Error('Add at least one Homework Item.')
+    if (input.items.some((item) => !item.subjectId || !item.details.trim())) {
+      throw new Error('Every Homework Item needs a Subject and assignment details.')
+    }
+    const subjectIds = input.items.map((item) => item.subjectId)
+    if (new SvelteSet(subjectIds).size !== subjectIds.length) {
+      throw new Error('Each Subject can appear only once in a Daily Homework Report.')
+    }
+    const currentSubjectIds = new SvelteSet(current?.items.map((item) => item.subjectId) ?? [])
+    if (
+      subjectIds.some((subjectId) => {
+        const subject = this.subjects.find((item) => item.id === subjectId)
+        return !subject || Boolean(subject.archivedAt && !currentSubjectIds.has(subjectId))
+      })
+    ) {
+      throw new Error('Select an active Subject for every Homework Item.')
+    }
+    return {
+      classGroupId: input.classGroupId,
+      date: input.date,
+      inchargeName,
+      parentNote,
+      items: input.items.map((item, order) => ({
+        subjectId: item.subjectId,
+        details: item.details.trim(),
+        order,
+      })),
+    }
+  }
+
+  async createDailyHomeworkReport(input: DailyHomeworkInput) {
+    const validated = this.validateDailyHomeworkInput(input)
+    if (
+      this.dailyHomeworkReports.some(
+        (report) =>
+          report.classGroupId === validated.classGroupId && report.date === validated.date,
+      )
+    ) {
+      throw new Error('A Daily Homework Report already exists for this Class Group and date.')
+    }
+    const timestamp = now()
+    const report: DailyHomeworkReport = {
+      id: id(),
+      ...validated,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }
+    await db.homeworkReports.add(report)
+    await this.refresh()
+    return report
+  }
+
+  async updateDailyHomeworkReport(reportId: string, input: DailyHomeworkInput) {
+    const current = this.dailyHomeworkReports.find((report) => report.id === reportId)
+    if (!current) throw new Error('Daily Homework Report not found.')
+    const validated = this.validateDailyHomeworkInput(input, current)
+    if (
+      this.dailyHomeworkReports.some(
+        (report) =>
+          report.id !== reportId &&
+          report.classGroupId === validated.classGroupId &&
+          report.date === validated.date,
+      )
+    ) {
+      throw new Error('A Daily Homework Report already exists for this Class Group and date.')
+    }
+    const updated: DailyHomeworkReport = {
+      ...current,
+      ...validated,
+      updatedAt: now(),
+    }
+    await db.homeworkReports.put(updated)
+    await this.refresh()
+    return updated
+  }
+
+  async deleteDailyHomeworkReport(reportId: string) {
+    await db.homeworkReports.delete(reportId)
+    this.dailyHomeworkReports = this.dailyHomeworkReports.filter(
+      (report) => report.id !== reportId,
+    )
   }
 
   selectRegister(registerId: string | null) {
@@ -490,6 +1012,7 @@ export class AttendanceState {
   async restore(file: File) {
     await restoreAttendanceDatabase(file)
     this.selectedRegisterId = null
+    this.selectedTestId = null
     await this.refresh()
   }
 

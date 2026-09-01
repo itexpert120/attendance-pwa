@@ -33,6 +33,15 @@ export interface Student {
   createdAt: string
 }
 
+export interface Subject {
+  id: string
+  name: string
+  normalizedName: string
+  archivedAt?: string
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Enrollment {
   id: string
   studentId: string
@@ -40,6 +49,60 @@ export interface Enrollment {
   rollNumber: string
   admittedOn: string
   struckOffOn?: string
+}
+
+export interface TestRecord {
+  id: string
+  name: string
+  normalizedName: string
+  subjectId: string
+  classGroupId: string
+  date: string
+  totalMarks: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TestRosterEntry {
+  id: string
+  testId: string
+  enrollmentId: string
+  createdAt: string
+}
+
+export type TestResultStatus = 'marks' | 'absent'
+export type TestProgress = 'not-started' | 'in-progress' | 'complete'
+export type SubjectReportPeriodType = 'daily' | 'weekly' | 'monthly'
+
+export interface TestResult {
+  id: string
+  testId: string
+  enrollmentId: string
+  status: TestResultStatus
+  marks?: number
+  updatedAt: string
+}
+
+export interface TestRosterRow extends EnrollmentRow {
+  rosterEntry: TestRosterEntry
+  result?: TestResult
+}
+
+export interface HomeworkItem {
+  subjectId: string
+  details: string
+  order: number
+}
+
+export interface DailyHomeworkReport {
+  id: string
+  classGroupId: string
+  date: string
+  inchargeName: string
+  parentNote: string
+  items: HomeworkItem[]
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Register {

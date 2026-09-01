@@ -3,14 +3,16 @@
   import AlertTriangle from 'phosphor-svelte/lib/Warning'
   import { AttendanceState } from './lib/app-state.svelte'
   import Dashboard from './lib/components/Dashboard.svelte'
+  import HomeworkView from './lib/components/HomeworkView.svelte'
   import PwaStatus from './lib/components/PwaStatus.svelte'
   import RegisterView from './lib/components/RegisterView.svelte'
   import SetupScreen from './lib/components/SetupScreen.svelte'
+  import TestsView from './lib/components/TestsView.svelte'
   import Button from './lib/components/ui/Button.svelte'
 
   const appState = new AttendanceState()
   let started = $state(false)
-  let screen = $state<'dashboard' | 'register'>('dashboard')
+  let screen = $state<'dashboard' | 'register' | 'tests' | 'homework'>('dashboard')
 
   $effect(() => {
     if (!started) {
@@ -28,6 +30,18 @@
     screen = 'dashboard'
     appState.selectRegister(null)
   }
+
+  function openTests() {
+    appState.selectRegister(null)
+    appState.selectTest(null)
+    screen = 'tests'
+  }
+
+  function openHomework() {
+    appState.selectRegister(null)
+    appState.selectTest(null)
+    screen = 'homework'
+  }
 </script>
 
 {#if !appState.ready}
@@ -42,8 +56,12 @@
   <SetupScreen state={appState} />
 {:else if screen === 'register' && appState.selectedRegister}
   <RegisterView state={appState} onback={backToDashboard} />
+{:else if screen === 'tests'}
+  <TestsView state={appState} onback={backToDashboard} />
+{:else if screen === 'homework'}
+  <HomeworkView state={appState} onback={backToDashboard} />
 {:else}
-  <Dashboard state={appState} onopenregister={openRegister} />
+  <Dashboard state={appState} onopenregister={openRegister} onopentests={openTests} onopenhomework={openHomework} />
 {/if}
 
 <PwaStatus />

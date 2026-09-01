@@ -12,6 +12,8 @@ import type {
   ReportPeriodType,
   SchoolSettings,
   Student,
+  TestProgress,
+  SubjectReportPeriodType,
 } from './types'
 import { EMPTY_FEES } from './types'
 
@@ -98,6 +100,11 @@ export function rowsForClass(
 
 export function academicYearStartYear(register: Register, settings: SchoolSettings) {
   return register.month >= settings.academicYearStartMonth ? register.year : register.year - 1
+}
+
+export function academicYearStartYearForDate(date: string, settings: SchoolSettings) {
+  const [year, month] = date.split('-').map(Number)
+  return month >= settings.academicYearStartMonth ? year : year - 1
 }
 
 export function isRegisterEarlierInAcademicYear(
@@ -389,4 +396,148 @@ export function minorToDisplay(value: number) {
 export function displayToMinor(value: string | number) {
   const numeric = typeof value === 'number' ? value : Number.parseFloat(value || '0')
   return Number.isFinite(numeric) && numeric >= 0 ? Math.round(numeric * 100) : 0
+}
+
+export function testSummary(
+  test: { id: string; totalMarks: number },
+  roster: Array<{ testId: string; enrollmentId: string }>,
+  results: Array<{
+    testId: string
+    enrollmentId: string
+    status: 'marks' | 'absent'
+    marks?: number
+  }>,
+) {
+  const members = roster.filter((entry) => entry.testId === test.id)
+  const memberIds = new Set(members.map((entry) => entry.enrollmentId))
+  const testResults = results.filter(
+    (result) => result.testId === test.id && memberIds.has(result.enrollmentId),
+  )
+  const numericMarks = testResults
+    .filter((result) => result.status === 'marks')
+    .map((result) => result.marks ?? 0)
+  const absentCount = testResults.filter((result) => result.status === 'absent').length
+  const notEnteredCount = members.length - testResults.length
+  const progress: TestProgress =
+    testResults.length === 0
+      ? 'not-started'
+      : notEnteredCount === 0
+        ? 'complete'
+        : 'in-progress'
+
+  return {
+    progress,
+    numericCount: numericMarks.length,
+    absentCount,
+    notEnteredCount,
+    average: numericMarks.length
+      ? numericMarks.reduce((total, marks) => total + marks, 0) / numericMarks.length
+      : null,
+    highest: numericMarks.length ? Math.max(...numericMarks) : null,
+    lowest: numericMarks.length ? Math.min(...numericMarks) : null,
+  }
+}
+
+export function marksPercentage(marks: number, totalMarks: number) {
+  return totalMarks > 0 ? (marks / totalMarks) * 100 : 0
+}
+
+export function testCountsBySubject(
+  subjects: Array<{ id: string; name?: string; archivedAt?: string }>,
+  tests: Array<{ subjectId: string }>,
+) {
+  return {
+    total: tests.length,
+    bySubject: subjects
+      .filter((subject) => !subject.archivedAt)
+      .map((subject) => ({
+        subjectId: subject.id,
+        count: tests.filter((test) => test.subjectId === subject.id).length,
+      })),
+  }
+}
+
+export function subjectReportPeriod(type: SubjectReportPeriodType, anchorDate: string) {
+  const anchor = new Date(`${anchorDate}T00:00:00`)
+  if (!anchorDate || Number.isNaN(anchor.getTime())) {
+    return { startDate: '', endDate: '', label: 'Choose a report date' }
+  }
+  if (type === 'daily') {
+    return {
+      startDate: anchorDate,
+      endDate: anchorDate,
+      label: new Intl.DateTimeFormat('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      }).format(anchor),
+    }
+  }
+  if (type === 'monthly') {
+    const year = anchor.getFullYear()
+    const month = anchor.getMonth() + 1
+    return {
+      startDate: dateKey(year, month, 1),
+      endDate: dateKey(year, month, daysInMonth(year, month)),
+      label: new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(anchor),
+    }
+  }
+
+  const mondayOffset = (anchor.getDay() + 6) % 7
+  const start = new Date(anchor)
+  start.setDate(anchor.getDate() - mondayOffset)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  const shortDate = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' })
+  const shortDateWithYear = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+  return {
+    startDate: dateKey(start.getFullYear(), start.getMonth() + 1, start.getDate()),
+    endDate: dateKey(end.getFullYear(), end.getMonth() + 1, end.getDate()),
+    label: `${shortDate.format(start)} – ${shortDateWithYear.format(end)}`,
+  }
+}
+
+export function testReportAggregate(
+  tests: Array<{ id: string; totalMarks: number }>,
+  roster: Array<{ testId: string; enrollmentId: string }>,
+  results: Array<{
+    testId: string
+    enrollmentId: string
+    status: 'marks' | 'absent'
+    marks?: number
+  }>,
+) {
+  const testIds = new Set(tests.map((test) => test.id))
+  const rosterKeys = new Set(
+    roster
+      .filter((entry) => testIds.has(entry.testId))
+      .map((entry) => `${entry.testId}:${entry.enrollmentId}`),
+  )
+  const relevantResults = results.filter(
+    (result) =>
+      testIds.has(result.testId) && rosterKeys.has(`${result.testId}:${result.enrollmentId}`),
+  )
+  const testMap = new Map(tests.map((test) => [test.id, test]))
+  const percentages = relevantResults
+    .filter((result) => result.status === 'marks')
+    .map((result) => {
+      const test = testMap.get(result.testId)
+      return test ? marksPercentage(result.marks ?? 0, test.totalMarks) : 0
+    })
+  const rosterCount = roster.filter((entry) => testIds.has(entry.testId)).length
+
+  return {
+    totalTests: tests.length,
+    numericCount: percentages.length,
+    absentCount: relevantResults.filter((result) => result.status === 'absent').length,
+    notEnteredCount: rosterCount - relevantResults.length,
+    averagePercentage: percentages.length
+      ? percentages.reduce((total, percentage) => total + percentage, 0) / percentages.length
+      : null,
+  }
 }

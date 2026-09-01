@@ -71,6 +71,48 @@ describe('offline database backup', () => {
       slc: 0,
       dcf: 0,
     })
+    await db.subjects.put({
+      id: 'subject-1',
+      name: 'Mathematics',
+      normalizedName: 'mathematics',
+      createdAt: '2026-08-29T00:00:00.000Z',
+      updatedAt: '2026-08-29T00:00:00.000Z',
+    })
+    await db.tests.put({
+      id: 'test-1',
+      name: 'Midterm',
+      normalizedName: 'midterm',
+      subjectId: 'subject-1',
+      classGroupId: 'class-1',
+      date: '2026-08-15',
+      totalMarks: 40,
+      createdAt: '2026-08-15T00:00:00.000Z',
+      updatedAt: '2026-08-15T00:00:00.000Z',
+    })
+    await db.testRoster.put({
+      id: 'test-1:enrollment-1',
+      testId: 'test-1',
+      enrollmentId: 'enrollment-1',
+      createdAt: '2026-08-15T00:00:00.000Z',
+    })
+    await db.testResults.put({
+      id: 'test-1:enrollment-1',
+      testId: 'test-1',
+      enrollmentId: 'enrollment-1',
+      status: 'marks',
+      marks: 35.5,
+      updatedAt: '2026-08-15T00:00:00.000Z',
+    })
+    await db.homeworkReports.put({
+      id: 'homework-1',
+      classGroupId: 'class-1',
+      date: '2026-08-15',
+      inchargeName: 'Class Incharge',
+      parentNote: 'Please sign the diary after checking the completed work.',
+      items: [{ subjectId: 'subject-1', details: 'Complete exercise 4.', order: 0 }],
+      createdAt: '2026-08-15T00:00:00.000Z',
+      updatedAt: '2026-08-15T00:00:00.000Z',
+    })
 
     const backup = await exportAttendanceDatabase()
     await db.settings.clear()
@@ -85,6 +127,13 @@ describe('offline database backup', () => {
     expect((await db.students.get('student-1'))?.photoDataUrl).toContain('data:image/png')
     expect((await db.attendance.get('register-1:enrollment-1:3:1'))?.status).toBe('P')
     expect((await db.feeEntries.get('register-1:enrollment-1:1'))?.ftf).toBe(10000)
+    expect((await db.subjects.get('subject-1'))?.name).toBe('Mathematics')
+    expect((await db.tests.get('test-1'))?.totalMarks).toBe(40)
+    expect((await db.testRoster.get('test-1:enrollment-1'))?.enrollmentId).toBe('enrollment-1')
+    expect((await db.testResults.get('test-1:enrollment-1'))?.marks).toBe(35.5)
+    expect((await db.homeworkReports.get('homework-1'))?.items[0]?.details).toBe(
+      'Complete exercise 4.',
+    )
   })
 
   it('enforces unique admission numbers in device-local storage', async () => {

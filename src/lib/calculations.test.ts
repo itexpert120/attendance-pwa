@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addFees,
   academicYearStartYear,
+  academicYearStartYearForDate,
   attendanceReport,
   broughtForwardAttendance,
   currentAttendance,
@@ -16,6 +17,11 @@ import {
   isEnrollmentInMonth,
   isHolidayDay,
   monthlyMovement,
+  marksPercentage,
+  testSummary,
+  testCountsBySubject,
+  subjectReportPeriod,
+  testReportAggregate,
   workingTimings,
 } from './calculations'
 import type {
@@ -173,6 +179,117 @@ describe('attendance calendar calculations', () => {
     const august = register('aug', 2026, 8)
     const report = attendanceReport([], [], [], august, 'weekly', 12)
     expect([report.startDay, report.endDay]).toEqual([10, 16])
+  })
+})
+
+describe('Test calculations', () => {
+  it('distinguishes numeric Marks, Absent, and Not Entered in one summary', () => {
+    const summary = testSummary(
+      { id: 'test-1', totalMarks: 40 },
+      [
+        { testId: 'test-1', enrollmentId: 'e1' },
+        { testId: 'test-1', enrollmentId: 'e2' },
+        { testId: 'test-1', enrollmentId: 'e3' },
+        { testId: 'test-1', enrollmentId: 'e4' },
+      ],
+      [
+        { testId: 'test-1', enrollmentId: 'e1', status: 'marks' as const, marks: 32.5 },
+        { testId: 'test-1', enrollmentId: 'e2', status: 'marks' as const, marks: 0 },
+        { testId: 'test-1', enrollmentId: 'e3', status: 'absent' as const },
+      ],
+    )
+
+    expect(summary).toEqual({
+      progress: 'in-progress',
+      numericCount: 2,
+      absentCount: 1,
+      notEnteredCount: 1,
+      average: 16.25,
+      highest: 32.5,
+      lowest: 0,
+    })
+  })
+
+  it('calculates a Test Result percentage from Marks and Total Marks', () => {
+    expect(marksPercentage(17.5, 20)).toBe(87.5)
+  })
+
+  it('derives a Test academic year from its date and the current school boundary', () => {
+    expect(academicYearStartYearForDate('2026-03-31', settings)).toBe(2025)
+    expect(academicYearStartYearForDate('2026-04-01', settings)).toBe(2026)
+  })
+
+  it('counts filtered Tests overall and includes zero-count active Subjects', () => {
+    expect(
+      testCountsBySubject(
+        [
+          { id: 'math', name: 'Mathematics' },
+          { id: 'science', name: 'Science' },
+          { id: 'history', name: 'History', archivedAt: '2026-08-01' },
+        ],
+        [{ subjectId: 'math' }, { subjectId: 'math' }, { subjectId: 'history' }],
+      ),
+    ).toEqual({
+      total: 3,
+      bySubject: [
+        { subjectId: 'math', count: 2 },
+        { subjectId: 'science', count: 0 },
+      ],
+    })
+  })
+
+  it('uses calendar day, Monday-to-Sunday week, and calendar month report periods', () => {
+    expect(subjectReportPeriod('daily', '2026-09-02')).toEqual({
+      startDate: '2026-09-02',
+      endDate: '2026-09-02',
+      label: 'Wednesday, 2 September 2026',
+    })
+    expect(subjectReportPeriod('weekly', '2026-09-02')).toEqual({
+      startDate: '2026-08-31',
+      endDate: '2026-09-06',
+      label: '31 Aug – 6 Sept 2026',
+    })
+    expect(subjectReportPeriod('monthly', '2026-09-02')).toEqual({
+      startDate: '2026-09-01',
+      endDate: '2026-09-30',
+      label: 'September 2026',
+    })
+  })
+
+  it('returns an empty report period when the anchor date is cleared', () => {
+    expect(subjectReportPeriod('daily', '')).toEqual({
+      startDate: '',
+      endDate: '',
+      label: 'Choose a report date',
+    })
+  })
+
+  it('aggregates normalized Test Results across different Total Marks', () => {
+    expect(
+      testReportAggregate(
+        [
+          { id: 'test-1', totalMarks: 40 },
+          { id: 'test-2', totalMarks: 20 },
+        ],
+        [
+          { testId: 'test-1', enrollmentId: 'e1' },
+          { testId: 'test-1', enrollmentId: 'e2' },
+          { testId: 'test-2', enrollmentId: 'e1' },
+          { testId: 'test-2', enrollmentId: 'e2' },
+        ],
+        [
+          { testId: 'test-1', enrollmentId: 'e1', status: 'marks' as const, marks: 20 },
+          { testId: 'test-1', enrollmentId: 'e2', status: 'absent' as const },
+          { testId: 'test-2', enrollmentId: 'e1', status: 'marks' as const, marks: 20 },
+        ],
+      ),
+    ).toEqual({
+      totalTests: 2,
+      numericCount: 2,
+      absentCount: 1,
+      notEnteredCount: 1,
+      averagePercentage: 75,
+    })
   })
 })
 

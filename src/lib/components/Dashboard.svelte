@@ -6,10 +6,12 @@
   import Settings from 'phosphor-svelte/lib/Gear'
   import Plus from 'phosphor-svelte/lib/Plus'
   import GraduationCap from 'phosphor-svelte/lib/Student'
+  import Exam from 'phosphor-svelte/lib/Exam'
+  import Notebook from 'phosphor-svelte/lib/Notebook'
   import Upload from 'phosphor-svelte/lib/UploadSimple'
   import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
-  import { registerLabel, shortMonthLabel } from '../calculations'
+  import { academicYearStartYearForDate, dateKey, registerLabel, shortMonthLabel } from '../calculations'
   import RosterManager from './RosterManager.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import SchoolSettingsModal from './SchoolSettingsModal.svelte'
@@ -21,9 +23,13 @@
   let {
     state: appState,
     onopenregister,
+    onopentests,
+    onopenhomework,
   }: {
     state: AttendanceState
     onopenregister: (registerId: string) => void
+    onopentests: () => void
+    onopenhomework: () => void
   } = $props()
 
   let createOpen = $state(false)
@@ -34,6 +40,19 @@
   let year = $state(new Date().getFullYear())
   let error = $state('')
   let restoreInput: HTMLInputElement
+
+  const currentDate = new Date()
+  const today = dateKey(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate())
+  let currentAcademicYearStart = $derived(
+    appState.settings ? academicYearStartYearForDate(today, appState.settings) : currentDate.getFullYear(),
+  )
+  let currentAcademicYearTests = $derived(
+    appState.settings
+      ? appState.tests.filter(
+          (test) => academicYearStartYearForDate(test.date, appState.settings!) === currentAcademicYearStart,
+        ).length
+      : 0,
+  )
 
   let classOptions = $derived(appState.classGroups.map((group) => ({ value: group.id, label: `${group.className} · Section ${group.section}` })))
   const monthOptions = Array.from({ length: 12 }, (_, index) => ({ value: index + 1, label: new Intl.DateTimeFormat('en', { month: 'long' }).format(new Date(2024, index, 1)) }))
@@ -102,15 +121,19 @@
     <section class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <h1 class="text-xl font-bold tracking-[-0.02em] text-ink-950 sm:text-2xl">Registers</h1>
       <div class="grid grid-cols-2 gap-2 sm:flex">
+        <Button variant="secondary" onclick={onopentests}><Exam size={17} weight="bold" /> Tests</Button>
+        <Button variant="secondary" onclick={onopenhomework}><Notebook size={17} weight="bold" /> Homework</Button>
         <Button variant="secondary" onclick={() => (rosterOpen = true)}><Users size={17} weight="bold" /> Students</Button>
         <Button onclick={() => (createOpen = true)}><CalendarPlus size={17} weight="bold" /> New register</Button>
       </div>
     </section>
 
-    <section class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
       {#each [
         { icon: GraduationCap, label: 'Classes', value: appState.classGroups.length },
         { icon: Users, label: 'Students', value: appState.students.length },
+        { icon: Exam, label: 'Tests this year', value: currentAcademicYearTests },
+        { icon: Notebook, label: 'Homework reports', value: appState.dailyHomeworkReports.length },
         { icon: Archive, label: 'Monthly registers', value: appState.registers.length },
         { icon: CalendarPlus, label: 'Current month', value: shortMonthLabel(new Date().getMonth() + 1, new Date().getFullYear()) },
       ] as stat (stat.label)}

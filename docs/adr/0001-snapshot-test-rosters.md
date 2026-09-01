@@ -1,0 +1,3 @@
+# Snapshot Test rosters
+
+Each Test preserves a Test Roster membership snapshot generated from the Students actively enrolled in its Class Group on the Test date. Users may refresh it from current Enrollments only while every Test Result is Not Entered; once any Marks or Absent state is recorded, the roster locks. Afterward, explicit correction may add a Student from the Class Group or remove one whose Result remains Not Entered, but no Enrollment edit silently changes the roster. Student names, admission numbers, and roll numbers remain canonical rather than copied into the snapshot, so identity corrections appear in historical reports.

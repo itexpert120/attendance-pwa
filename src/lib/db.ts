@@ -3,6 +3,7 @@ import { exportDB, importInto, peakImportFile } from 'dexie-export-import'
 import type {
   AttendanceMark,
   ClassGroup,
+  DailyHomeworkReport,
   Enrollment,
   FeeEntry,
   Holiday,
@@ -11,6 +12,10 @@ import type {
   SchoolSettings,
   Student,
   StudentRemark,
+  Subject,
+  TestRecord,
+  TestResult,
+  TestRosterEntry,
 } from './types'
 
 class AttendanceDatabase extends Dexie {
@@ -24,6 +29,11 @@ class AttendanceDatabase extends Dexie {
   feeEntries!: EntityTable<FeeEntry, 'id'>
   installmentMeta!: EntityTable<InstallmentMeta, 'id'>
   remarks!: EntityTable<StudentRemark, 'id'>
+  subjects!: EntityTable<Subject, 'id'>
+  tests!: EntityTable<TestRecord, 'id'>
+  testRoster!: EntityTable<TestRosterEntry, 'id'>
+  testResults!: EntityTable<TestResult, 'id'>
+  homeworkReports!: EntityTable<DailyHomeworkReport, 'id'>
 
   constructor() {
     super('students-attendance-register')
@@ -39,6 +49,18 @@ class AttendanceDatabase extends Dexie {
       feeEntries: 'id, registerId, enrollmentId, [registerId+enrollmentId], [registerId+installment]',
       installmentMeta: 'id, registerId, [registerId+installment]',
       remarks: 'id, registerId, enrollmentId, [registerId+enrollmentId]',
+    })
+
+    this.version(2).stores({
+      subjects: 'id, &normalizedName, archivedAt, createdAt',
+      tests:
+        'id, subjectId, classGroupId, date, [classGroupId+subjectId+date+normalizedName], createdAt',
+      testRoster: 'id, testId, enrollmentId, [testId+enrollmentId]',
+      testResults: 'id, testId, enrollmentId, [testId+enrollmentId]',
+    })
+
+    this.version(3).stores({
+      homeworkReports: 'id, classGroupId, date, &[classGroupId+date], updatedAt',
     })
   }
 }
