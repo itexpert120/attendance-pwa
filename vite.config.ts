@@ -1,33 +1,33 @@
-import { svelte } from '@sveltejs/vite-plugin-svelte'
-import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
-import { VitePWA } from 'vite-plugin-pwa'
+import { svelte } from "@sveltejs/vite-plugin-svelte";
+import tailwindcss from "@tailwindcss/vite";
+import { defineConfig } from "vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: "./",
   build: {
     rolldownOptions: {
       output: {
         codeSplitting: {
           groups: [
             {
-              name: 'phone-number',
+              name: "phone-number",
               test: /node_modules[\\/]libphonenumber-js/,
               priority: 3,
             },
             {
-              name: 'offline-data',
+              name: "offline-data",
               test: /node_modules[\\/](dexie|dexie-export-import)/,
               priority: 2,
             },
             {
-              name: 'ui-vendor',
+              name: "ui-vendor",
               test: /node_modules[\\/](svelte|bits-ui|phosphor-svelte)/,
               priority: 2,
             },
             {
-              name: 'vendor',
+              name: "vendor",
               test: /node_modules/,
               priority: 1,
               maxSize: 450_000,
@@ -41,29 +41,35 @@ export default defineConfig({
     tailwindcss(),
     svelte(),
     VitePWA({
-      registerType: 'prompt',
+      registerType: "prompt",
       injectRegister: false,
       manifest: {
-        name: 'Students Attendance Register',
-        short_name: 'Attendance',
-        description: 'Offline students attendance and fee register for schools.',
-        theme_color: '#166534',
-        background_color: '#fafafa',
-        display: 'standalone',
-        orientation: 'any',
-        start_url: './',
-        scope: './',
+        name: "Students Attendance Register",
+        short_name: "Attendance",
+        description:
+          "Offline students attendance and fee register for schools.",
+        theme_color: "#166534",
+        background_color: "#fafafa",
+        display: "standalone",
+        orientation: "any",
+        start_url: "./",
+        scope: "./",
         icons: [
-          { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'pwa-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: "pwa-192.png", sizes: "192x192", type: "image/png" },
+          { src: "pwa-512.png", sizes: "512x512", type: "image/png" },
+          {
+            src: "pwa-maskable.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
+          },
         ],
       },
       workbox: {
         cleanupOutdatedCaches: true,
-        navigateFallback: 'index.html',
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff,woff2}'],
+        navigateFallback: "index.html",
+        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest,woff,woff2}"],
       },
     }),
   ],
-})
+});
