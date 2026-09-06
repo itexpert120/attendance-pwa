@@ -73,6 +73,21 @@ describe("attendance state hot-path updates", () => {
     expect(await db.attendance.count()).toBe(0);
   });
 
+  it("preserves hidden struck-off attendance during bulk marking and clearing", async () => {
+    const state = createState();
+    await state.setMark(register, enrollment, editableDay, 1, "P");
+    state.enrollments = [{ ...enrollment, struckOffOn: `${enrollment.admittedOn.slice(0, 7)}-${String(editableDay).padStart(2, "0")}` }];
+    expect(state.attendanceRowsForRegister(register)).toHaveLength(0);
+    expect(state.rowsForRegister(register)).toHaveLength(1);
+    await state.bulkSetMarks(register, editableDay, 1, "A");
+    await state.bulkSetMarks(register, editableDay, 1, null);
+    expect(state.marks).toHaveLength(1);
+    expect(state.marks[0]?.status).toBe("P");
+    expect((await db.attendance.toArray())[0]?.status).toBe("P");
+    state.enrollments = [enrollment];
+    expect(state.attendanceRowsForRegister(register)).toHaveLength(1);
+  });
+
   it("clears local and stored marks when a school holiday is created", async () => {
     const state = createState();
     await state.setMark(register, enrollment, editableDay, 1, "P");

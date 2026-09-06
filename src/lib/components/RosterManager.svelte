@@ -46,6 +46,8 @@
 
   let effectiveClassId = $derived(classGroupId || appState.classGroups[0]?.id || '')
   let rows = $derived(rowsForClass(appState.enrollments, appState.students, effectiveClassId))
+  let activeRows = $derived(rows.filter((row) => !row.enrollment.struckOffOn))
+  let struckOffRows = $derived(rows.filter((row) => Boolean(row.enrollment.struckOffOn)))
   let classOptions = $derived(
     appState.classGroups.map((group) => ({ value: group.id, label: `${group.className} · ${group.section}` })),
   )
@@ -231,6 +233,47 @@
   </form>
 {/snippet}
 
+{#snippet studentList(tableRows: EnrollmentRow[], label: string, emptyMessage: string)}
+      <div class="space-y-2 sm:hidden">
+        {#each tableRows as row (row.enrollment.id)}
+          <button class="flex min-h-18 w-full items-center gap-3 rounded-2xl border border-paper-200 bg-white p-3 text-left shadow-soft" onclick={() => editInModal(row)}>
+            {#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-10 shrink-0 rounded-xl border border-paper-200 object-cover" />{:else}<span class="grid size-10 shrink-0 place-items-center rounded-xl bg-paper-100 text-xs font-extrabold text-ink-800">{row.enrollment.rollNumber}</span>{/if}
+            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold text-ink-950">{row.student.name}</span><span class="mt-1 block truncate text-[10px] font-semibold text-ink-600">Adm. {row.student.admissionNumber}{row.student.phone ? ` · ${displayPhoneNumber(row.student.phone)}` : ''}</span></span>
+            {#if row.enrollment.struckOffOn}<span class="text-[10px] text-ink-600">Struck off<br />{row.enrollment.struckOffOn}</span>{/if}
+            <Pencil size={16} weight="bold" class="shrink-0 text-ink-600" />
+          </button>
+        {:else}
+          <div class="rounded-2xl border border-dashed border-paper-200 px-4 py-10 text-center text-sm text-ink-600"><Users size={24} class="mx-auto mb-2 opacity-60" />{emptyMessage}</div>
+        {/each}
+      </div>
+
+      <div class="hidden overflow-hidden rounded-xl border border-paper-200 sm:block">
+        <div class="max-h-100 overflow-auto">
+          <table class="w-full text-left text-xs">
+            <caption class="sr-only">{label}</caption>
+            <thead class="sticky top-0 bg-paper-100 text-ink-600">
+              <tr><th class="px-3 py-2">Roll</th><th class="px-3 py-2">Name with parentage</th><th class="px-3 py-2">Admission</th><th class="w-12 px-2 py-2"><span class="sr-only">Edit</span></th></tr>
+            </thead>
+            <tbody class="divide-y divide-paper-200 bg-white">
+              {#each tableRows as row (row.enrollment.id)}
+                <tr>
+                  <td class="px-3 py-3 font-bold text-ink-950">{row.enrollment.rollNumber}</td>
+                  <td class="px-3 py-3"><div class="flex items-center gap-2">{#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-8 shrink-0 rounded-lg border border-paper-200 object-cover" />{/if}<div><p class="font-semibold text-ink-950">{row.student.name}</p><p class="mt-0.5 text-[11px] text-ink-600">{row.student.phone ? displayPhoneNumber(row.student.phone) : 'No phone'}{row.student.dateOfBirth ? ` · DOB ${row.student.dateOfBirth}` : ''}</p>{#if row.enrollment.struckOffOn}<p class="mt-1 text-[11px] text-ink-600">Struck off {row.enrollment.struckOffOn}</p>{/if}</div></div></td>
+                  <td class="px-3 py-3 text-ink-600">{row.student.admissionNumber}</td>
+                  <td class="px-2 py-2">
+                    <span class="lg:hidden"><Button variant="ghost" size="icon" title="Edit student" onclick={() => editInModal(row)}><Pencil size={15} /></Button></span>
+                    <span class="hidden lg:inline"><Button variant="ghost" size="icon" title="Edit student" onclick={() => editOnDesktop(row)}><Pencil size={15} /></Button></span>
+                  </td>
+                </tr>
+              {:else}
+                <tr><td colspan="4" class="px-4 py-10 text-center text-ink-600"><Users size={24} class="mx-auto mb-2 opacity-60" />{emptyMessage}</td></tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </div>
+{/snippet}
+
 <Modal bind:open title="Students & classes" description="Phone numbers stay in student details and are never printed." size="xl">
   <div class="grid min-w-0 max-w-full gap-5 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
     <section class="min-w-0 space-y-4">
@@ -252,42 +295,16 @@
       {/if}
       <Button class="w-full lg:hidden" onclick={startAddStudent}><UserPlus size={17} weight="bold" /> Add student</Button>
 
-      <div class="space-y-2 sm:hidden">
-        {#each rows as row (row.enrollment.id)}
-          <button class:opacity-50={Boolean(row.enrollment.struckOffOn)} class="flex min-h-18 w-full items-center gap-3 rounded-2xl border border-paper-200 bg-white p-3 text-left shadow-soft" onclick={() => editInModal(row)}>
-            {#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-10 shrink-0 rounded-xl border border-paper-200 object-cover" />{:else}<span class="grid size-10 shrink-0 place-items-center rounded-xl bg-paper-100 text-xs font-extrabold text-ink-800">{row.enrollment.rollNumber}</span>{/if}
-            <span class="min-w-0 flex-1"><span class="block truncate text-sm font-bold text-ink-950">{row.student.name}</span><span class="mt-1 block truncate text-[10px] font-semibold text-ink-600">Adm. {row.student.admissionNumber}{row.student.phone ? ` · ${displayPhoneNumber(row.student.phone)}` : ''}</span></span>
-            <Pencil size={16} weight="bold" class="shrink-0 text-ink-600" />
-          </button>
-        {:else}
-          <div class="rounded-2xl border border-dashed border-paper-200 px-4 py-10 text-center text-sm text-ink-600"><Users size={24} class="mx-auto mb-2 opacity-60" />No students in this class yet.</div>
-        {/each}
+      <div class="space-y-2">
+        <h3 class="text-sm font-bold text-ink-950">Active students ({activeRows.length})</h3>
+        {@render studentList(activeRows, 'Active students', 'No active students in this class.')}
       </div>
-
-      <div class="hidden overflow-hidden rounded-xl border border-paper-200 sm:block">
-        <div class="max-h-100 overflow-auto">
-          <table class="w-full text-left text-xs">
-            <thead class="sticky top-0 bg-paper-100 text-ink-600">
-              <tr><th class="px-3 py-2">Roll</th><th class="px-3 py-2">Name with parentage</th><th class="px-3 py-2">Admission</th><th class="w-12 px-2 py-2"><span class="sr-only">Edit</span></th></tr>
-            </thead>
-            <tbody class="divide-y divide-paper-200 bg-white">
-              {#each rows as row (row.enrollment.id)}
-                <tr class:opacity-50={Boolean(row.enrollment.struckOffOn)}>
-                  <td class="px-3 py-3 font-bold text-ink-950">{row.enrollment.rollNumber}</td>
-                  <td class="px-3 py-3"><div class="flex items-center gap-2">{#if row.student.photoDataUrl}<img src={row.student.photoDataUrl} alt="" class="size-8 shrink-0 rounded-lg border border-paper-200 object-cover" />{/if}<div><p class="font-semibold text-ink-950">{row.student.name}</p><p class="mt-0.5 text-[11px] text-ink-600">{row.student.phone ? displayPhoneNumber(row.student.phone) : 'No phone'}{row.student.dateOfBirth ? ` · DOB ${row.student.dateOfBirth}` : ''}</p></div></div></td>
-                  <td class="px-3 py-3 text-ink-600">{row.student.admissionNumber}</td>
-                  <td class="px-2 py-2">
-                    <span class="lg:hidden"><Button variant="ghost" size="icon" title="Edit student" onclick={() => editInModal(row)}><Pencil size={15} /></Button></span>
-                    <span class="hidden lg:inline"><Button variant="ghost" size="icon" title="Edit student" onclick={() => editOnDesktop(row)}><Pencil size={15} /></Button></span>
-                  </td>
-                </tr>
-              {:else}
-                <tr><td colspan="4" class="px-4 py-10 text-center text-ink-600"><Users size={24} class="mx-auto mb-2 opacity-60" />No students in this class yet.</td></tr>
-              {/each}
-            </tbody>
-          </table>
+      <details class="rounded-xl border border-paper-200 bg-paper-50 p-3">
+        <summary class="cursor-pointer text-sm font-bold text-ink-950">Struck-off students ({struckOffRows.length})</summary>
+        <div class="mt-3">
+          {@render studentList(struckOffRows, 'Struck-off students', 'No struck-off students in this class.')}
         </div>
-      </div>
+      </details>
     </section>
 
     {@render studentEditor()}

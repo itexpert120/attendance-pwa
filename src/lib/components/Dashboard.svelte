@@ -160,7 +160,7 @@
               <span class="text-[9px] font-extrabold uppercase tracking-[0.08em]">{new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(register.year, register.month - 1))}</span>
               <span class="-mt-2 font-display text-2xl font-semibold leading-none">{String(register.year).slice(-2)}</span>
             </div>
-            <div class="min-w-0 flex-1"><p class="font-display text-xl font-semibold leading-tight text-ink-950">{registerLabel(register, appState.classGroups)}</p><p class="mt-1.5 text-[11px] font-semibold text-ink-600">{appState.rowsForRegister(register).length} students · two daily timings</p></div>
+            <div class="min-w-0 flex-1"><p class="font-display text-xl font-semibold leading-tight text-ink-950">{registerLabel(register, appState.classGroups)}</p><p class="mt-1.5 text-[11px] font-semibold text-ink-600">{appState.attendanceRowsForRegister(register).length} students · two daily timings</p></div>
             <ChevronRight size={19} weight="bold" class="text-ink-600 transition group-hover:translate-x-1 group-hover:text-register-700" />
           </button>
         {:else}

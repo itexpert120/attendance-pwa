@@ -15,6 +15,7 @@ import {
   isAttendanceDateEditable,
   isEnrollmentActiveOn,
   isEnrollmentInMonth,
+  isEnrollmentVisibleInAttendance,
   isHolidayDay,
   monthlyMovement,
   marksPercentage,
@@ -196,6 +197,21 @@ describe("attendance calendar calculations", () => {
     expect(isEnrollmentInMonth(enrollment, register("sep", 2026, 9))).toBe(
       false,
     );
+  });
+
+  it("hides struck-off students from their entire struck-off month without changing historical eligibility", () => {
+    const enrollment: Enrollment = {
+      id: "e1", studentId: "s1", classGroupId: "class-1", rollNumber: "1",
+      admittedOn: "2026-07-01", struckOffOn: "2026-08-20",
+    };
+    expect(isEnrollmentVisibleInAttendance(enrollment, register("jul", 2026, 7))).toBe(true);
+    for (const struckOffOn of ["2026-08-01", "2026-08-20", "2026-08-31"]) {
+      expect(isEnrollmentVisibleInAttendance({ ...enrollment, struckOffOn }, register("aug", 2026, 8))).toBe(false);
+    }
+    expect(isEnrollmentVisibleInAttendance(enrollment, register("sep", 2026, 9))).toBe(false);
+    expect(isEnrollmentVisibleInAttendance({ ...enrollment, struckOffOn: undefined }, register("aug", 2026, 8))).toBe(true);
+    expect(isEnrollmentInMonth(enrollment, register("aug", 2026, 8))).toBe(true);
+    expect(isEnrollmentActiveOn(enrollment, "2026-08-19")).toBe(true);
   });
 
   it("derives beginning, end, admitted, and struck-off counts from enrollment dates", () => {

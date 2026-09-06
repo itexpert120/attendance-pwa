@@ -34,6 +34,10 @@
     appState.classGroups.find((item) => item.id === register.classGroupId),
   )
   let rows = $derived(appState.rowsForRegister(register))
+  let attendanceRows = $derived(appState.attendanceRowsForRegister(register))
+  let visibleEnrollmentIds = $derived(new Set(attendanceRows.map((row) => row.enrollment.id)))
+  let visibleMonthAttendance = $derived(attendanceRows.reduce((sum, row) => sum + (currentByEnrollment.get(row.enrollment.id) ?? 0), 0))
+  let visiblePreviousAttendance = $derived(attendanceRows.reduce((sum, row) => sum + (previousByEnrollment.get(row.enrollment.id) ?? 0), 0))
   let days = $derived(daysForRegister(register))
   let dayChunks = $derived([days.slice(0, 16), days.slice(16)])
   let monthName = $derived(
@@ -76,7 +80,7 @@
   let presentByDaySession = $derived.by(() => {
     const totals = new SvelteMap<string, number>()
     for (const mark of appState.marks) {
-      if (mark.registerId !== register.id || mark.status !== 'P') continue
+      if (mark.registerId !== register.id || mark.status !== 'P' || !visibleEnrollmentIds.has(mark.enrollmentId)) continue
       const key = `${mark.day}:${mark.session}`
       totals.set(key, (totals.get(key) ?? 0) + ATTENDANCE_MARK_VALUE)
     }
@@ -177,7 +181,7 @@
           </tr>
         </thead>
         <tbody>
-          {#each rows as row (row.enrollment.id)}
+          {#each attendanceRows as row (row.enrollment.id)}
             {@const current = currentByEnrollment.get(row.enrollment.id) ?? 0}
             {@const brought = previousByEnrollment.get(row.enrollment.id) ?? 0}
             <tr class="even:bg-paper-100/70">
@@ -199,7 +203,7 @@
             </tr>
           {/each}
         </tbody>
-        {#if rows.length}
+        {#if attendanceRows.length}
           <tfoot class="bg-register-100 font-black text-register-900">
             <tr>
               <th colspan="3" class="border border-register-900 p-1 text-left">Column totals</th>
@@ -209,9 +213,9 @@
                 {/each}
               {/each}
               {#if chunkIndex === dayChunks.length - 1}
-                <td class="border border-register-900 p-1">{monthAttendance}</td>
-                <td class="border border-register-900 p-1">{previousAttendance}</td>
-                <td class="border border-register-900 p-1">{monthAttendance + previousAttendance}</td>
+                <td class="border border-register-900 p-1">{visibleMonthAttendance}</td>
+                <td class="border border-register-900 p-1">{visiblePreviousAttendance}</td>
+                <td class="border border-register-900 p-1">{visibleMonthAttendance + visiblePreviousAttendance}</td>
               {/if}
             </tr>
           </tfoot>

@@ -10,6 +10,7 @@ import {
   daysInMonth,
   isAttendanceDateEditable,
   isEnrollmentActiveOn,
+  isEnrollmentVisibleInAttendance,
   isHolidayDay,
   rowsForClass,
   testSummary as calculateTestSummary,
@@ -967,6 +968,12 @@ export class AttendanceState {
     );
   }
 
+  attendanceRowsForRegister(register: Register) {
+    return this.rowsForRegister(register).filter((row) =>
+      isEnrollmentVisibleInAttendance(row.enrollment, register),
+    );
+  }
+
   async setMark(
     register: Register,
     enrollment: Enrollment,
@@ -1008,7 +1015,7 @@ export class AttendanceState {
     if (!isAttendanceDateEditable(register, day)) return;
     if (isHolidayDay(this.holidays, register, day)) return;
     const date = dateKey(register.year, register.month, day);
-    const rows = this.rowsForRegister(register).filter((row) =>
+    const rows = this.attendanceRowsForRegister(register).filter((row) =>
       isEnrollmentActiveOn(row.enrollment, date),
     );
     await db.transaction("rw", db.attendance, async () => {

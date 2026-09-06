@@ -44,7 +44,8 @@
   let holidayError = $state('')
 
   let register = $derived(appState.selectedRegister!)
-  let rows = $derived(appState.rowsForRegister(register))
+  let rows = $derived(appState.attendanceRowsForRegister(register))
+  let visibleEnrollmentIds = $derived(new Set(rows.map((row) => row.enrollment.id)))
   let days = $derived(daysForRegister(register))
   let selectedDateLabel = $derived(
     new Intl.DateTimeFormat('en', { weekday: 'long', day: 'numeric', month: 'long' }).format(
@@ -76,15 +77,15 @@
     presentAttendanceByEnrollment(appState.marks, previousRegisterIds),
   )
   let currentPresentTotal = $derived(
-    [...currentPresentByEnrollment.values()].reduce((sum, value) => sum + value, 0),
+    rows.reduce((sum, row) => sum + (currentPresentByEnrollment.get(row.enrollment.id) ?? 0), 0),
   )
   let broughtForwardTotal = $derived(
-    [...broughtForwardByEnrollment.values()].reduce((sum, value) => sum + value, 0),
+    rows.reduce((sum, row) => sum + (broughtForwardByEnrollment.get(row.enrollment.id) ?? 0), 0),
   )
   let presentByDaySession = $derived.by(() => {
     const totals = new SvelteMap<string, number>()
     for (const mark of appState.marks) {
-      if (mark.registerId !== register.id || mark.status !== 'P') continue
+      if (mark.registerId !== register.id || mark.status !== 'P' || !visibleEnrollmentIds.has(mark.enrollmentId)) continue
       const key = `${mark.day}:${mark.session}`
       totals.set(key, (totals.get(key) ?? 0) + ATTENDANCE_MARK_VALUE)
     }

@@ -99,6 +99,12 @@ export function isEnrollmentInMonth(
   );
 }
 
+// Attendance tables hide the entire struck-off month; historical records stay intact.
+export function isEnrollmentVisibleInAttendance(enrollment: Enrollment, register: Register) {
+  return isEnrollmentInMonth(enrollment, register) &&
+    (!enrollment.struckOffOn || enrollment.struckOffOn.slice(0, 7) > dateKey(register.year, register.month, 1).slice(0, 7));
+}
+
 export function rowsForClass(
   enrollments: Enrollment[],
   students: Student[],
