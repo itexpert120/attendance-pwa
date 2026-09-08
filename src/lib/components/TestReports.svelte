@@ -18,6 +18,7 @@
     testReportAggregate,
   } from '../calculations'
   import type { SubjectReportPeriodType, TestRecord } from '../types'
+  import { printDocument } from '../print'
   import PrintPeriodicTestReport from './PrintPeriodicTestReport.svelte'
   import Badge from './ui/Badge.svelte'
   import Button from './ui/Button.svelte'
@@ -179,7 +180,7 @@
 
   async function printReport() {
     await tick()
-    window.print()
+    await printDocument()
   }
 </script>
 

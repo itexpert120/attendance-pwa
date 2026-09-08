@@ -22,6 +22,7 @@
     testCountsBySubject,
   } from '../calculations'
   import type { Subject, TestProgress, TestRecord } from '../types'
+  import { printDocument } from '../print'
   import PrintTestReport from './PrintTestReport.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import TestDetail from './TestDetail.svelte'
@@ -236,7 +237,7 @@
   async function printReport(test: TestRecord) {
     printTestId = test.id
     await tick()
-    window.print()
+    await printDocument()
     printTestId = null
   }
 

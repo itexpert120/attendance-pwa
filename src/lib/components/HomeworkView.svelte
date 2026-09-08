@@ -18,6 +18,7 @@
   import { tick } from 'svelte'
   import type { AttendanceState } from '../app-state.svelte'
   import { dateKey } from '../calculations'
+  import { printDocument } from '../print'
   import type { DailyHomeworkReport } from '../types'
   import type { Subject } from '../types'
   import HomeworkPhotoPicker from './HomeworkPhotoPicker.svelte'
@@ -275,7 +276,7 @@
   async function openPrint(report: DailyHomeworkReport) {
     printReportId = report.id
     await tick()
-    window.print()
+    await printDocument()
     printReportId = null
   }
 

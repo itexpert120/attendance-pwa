@@ -11,6 +11,7 @@
   import type { AttendanceState } from '../app-state.svelte'
   import type { AttendanceReport } from '../types'
   import { monthLabel } from '../calculations'
+  import { printDocument } from '../print'
   import AttendanceGrid from './AttendanceGrid.svelte'
   import FeesGrid from './FeesGrid.svelte'
   import PrintAbsenteeList from './PrintAbsenteeList.svelte'
@@ -45,21 +46,21 @@
     { id: 'reports' as const, label: 'Reports', icon: FileText },
   ]
 
-  function printRegister() {
+  async function printRegister() {
     flushSync(() => (printMode = 'register'))
-    window.print()
+    await printDocument()
   }
 
-  function printReport(report: AttendanceReport) {
+  async function printReport(report: AttendanceReport) {
     reportToPrint = report
     flushSync(() => (printMode = 'report'))
-    window.print()
+    await printDocument()
   }
 
-  function printAbsenteeList(report: AttendanceReport) {
+  async function printAbsenteeList(report: AttendanceReport) {
     reportToPrint = report
     flushSync(() => (printMode = 'absentees'))
-    window.print()
+    await printDocument()
   }
 
   function beforePrint() {

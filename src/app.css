@@ -1,11 +1,13 @@
 @import "tailwindcss";
-@import "@fontsource/merriweather/400.css";
-@import "@fontsource/merriweather/700.css";
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
+@import "@fontsource/inter/latin-700.css";
+@import "@fontsource/merriweather/latin-700.css";
 
 @theme {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-print: "Merriweather", ui-serif, Georgia, "Times New Roman", serif;
   --color-ink-950: #18181b;
   --color-ink-800: #3f3f46;
   --color-ink-600: #71717a;
@@ -26,7 +28,9 @@
 .print-doc {
   color: #14532d;
   background: #ffffff;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 11px;
+  font-weight: 400;
   line-height: 1.6;
 }
 
@@ -39,7 +43,7 @@
 }
 
 .print-title {
-  font-family: var(--font-print);
+  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.25;
@@ -55,7 +59,7 @@
 }
 
 .print-section-title {
-  font-family: var(--font-print);
+  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
   font-size: 13px;
   font-weight: 700;
   line-height: 1.25;
@@ -113,7 +117,7 @@
 }
 
 .print-stat-value {
-  font-family: var(--font-print);
+  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
   font-size: 16px;
   font-weight: 700;
   color: #14532d;
@@ -209,4 +213,15 @@
   border-top: 1px solid #bbf7d0;
   font-size: 8px;
   color: #4d7c5f;
+}
+
+@media print {
+  .print-doc,
+  .print-doc :where(p, span, div, td, th, dt, dd, li, aside, footer, header, table, caption, figcaption) {
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .print-doc :where(.print-title, .print-section-title, .print-stat-value, h1, h2, h3) {
+    font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
+  }
 }

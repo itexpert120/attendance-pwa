@@ -9,6 +9,7 @@
   import SetupScreen from './lib/components/SetupScreen.svelte'
   import TestsView from './lib/components/TestsView.svelte'
   import Button from './lib/components/ui/Button.svelte'
+  import PrintFontPreload from './lib/components/print/PrintFontPreload.svelte'
 
   const appState = new AttendanceState()
   let started = $state(false)
@@ -65,3 +66,4 @@
 {/if}
 
 <PwaStatus />
+<PrintFontPreload />
