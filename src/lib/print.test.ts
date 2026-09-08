@@ -124,17 +124,7 @@ describe("downloadPrintDocumentAsImage", () => {
     const decode = vi.fn().mockResolvedValue(undefined);
     const printRoot = {
       querySelectorAll: vi.fn().mockReturnValue([{ decode }]),
-      cloneNode: vi.fn(() => ({
-        classList: { remove: vi.fn() },
-        style: { display: "" },
-        querySelectorAll: vi.fn().mockReturnValue([{ decode }]),
-      })),
-    };
-    const host = {
-      style: { cssText: "" },
-      append: vi.fn(),
-      remove: vi.fn(),
-      querySelectorAll: vi.fn().mockReturnValue([{ decode }]),
+      style: { left: "", zIndex: "", padding: "", boxSizing: "", background: "" },
     };
     const link = {
       href: "",
@@ -153,16 +143,16 @@ describe("downloadPrintDocumentAsImage", () => {
       querySelector: vi.fn((selector: string) =>
         selector === "[data-print-root]" ? printRoot : null,
       ),
-      createElement: vi.fn((tag: string) => (tag === "a" ? link : host)),
+      createElement: vi.fn(() => link),
       body,
     });
 
     await downloadPrintDocumentAsImage("homework-4-A-2026-09-08.png");
 
-    expect(toPng).toHaveBeenCalledOnce();
+    expect(toPng).toHaveBeenCalledWith(printRoot, expect.any(Object));
+    expect(printRoot.style.left).toBe("");
     expect(link.href).toBe("data:image/png;base64,PNGDATA");
     expect(link.download).toBe("homework-4-A-2026-09-08.png");
     expect(link.click).toHaveBeenCalledOnce();
-    expect(host.remove).toHaveBeenCalledOnce();
   });
 });

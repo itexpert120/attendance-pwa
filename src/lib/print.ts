@@ -81,18 +81,22 @@ export async function capturePrintDocumentPng() {
   await loadPrintFonts();
   await waitForPrintImages(source);
 
-  const host = document.createElement("div");
-  host.style.cssText =
-    "position:fixed;left:-10000px;top:0;width:210mm;padding:14mm 12mm;background:#ffffff;box-sizing:border-box;";
-  const clone = source.cloneNode(true) as HTMLElement;
-  clone.classList.remove("hidden");
-  clone.style.display = "block";
-  host.append(clone);
-  document.body.append(host);
+  const previous = {
+    left: source.style.left,
+    zIndex: source.style.zIndex,
+    padding: source.style.padding,
+    boxSizing: source.style.boxSizing,
+    background: source.style.background,
+  };
+  source.style.left = "0";
+  source.style.zIndex = "0";
+  source.style.padding = "14mm 12mm";
+  source.style.boxSizing = "border-box";
+  source.style.background = "#ffffff";
 
   try {
-    await waitForPrintImages(host);
-    return await toPng(host, {
+    await waitForPrintImages(source);
+    return await toPng(source, {
       pixelRatio: 2,
       backgroundColor: "#ffffff",
       cacheBust: true,
@@ -100,7 +104,11 @@ export async function capturePrintDocumentPng() {
   } catch {
     throw new Error("Could not create an image of this report.");
   } finally {
-    host.remove();
+    source.style.left = previous.left;
+    source.style.zIndex = previous.zIndex;
+    source.style.padding = previous.padding;
+    source.style.boxSizing = previous.boxSizing;
+    source.style.background = previous.background;
   }
 }
 
