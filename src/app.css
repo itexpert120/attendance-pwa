@@ -215,7 +215,53 @@
   color: #4d7c5f;
 }
 
+.print-single-page {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  height: 269mm;
+  overflow: hidden;
+}
+
+.print-single-page > :not(.print-homework-photo) {
+  flex-shrink: 0;
+}
+
+.print-single-page .print-footer {
+  margin-top: 8px;
+}
+
+.print-homework-photo {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  flex-direction: column;
+}
+
+.print-homework-photo-frame {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+}
+
+.print-homework-photo-frame img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
 @media print {
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+  }
+
   .print-doc,
   .print-doc :where(p, span, div, td, th, dt, dd, li, aside, footer, header, table, caption, figcaption) {
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -223,5 +269,10 @@
 
   .print-doc :where(.print-title, .print-section-title, .print-stat-value, h1, h2, h3) {
     font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
+  }
+
+  .print-single-page {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }

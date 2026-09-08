@@ -13,12 +13,17 @@
   import NotePencil from 'phosphor-svelte/lib/NotePencil'
   import Notebook from 'phosphor-svelte/lib/Notebook'
   import Plus from 'phosphor-svelte/lib/Plus'
+  import ImageSquare from 'phosphor-svelte/lib/ImageSquare'
   import Printer from 'phosphor-svelte/lib/Printer'
   import Trash from 'phosphor-svelte/lib/Trash'
   import { tick } from 'svelte'
   import type { AttendanceState } from '../app-state.svelte'
   import { dateKey } from '../calculations'
-  import { printDocument } from '../print'
+  import {
+    downloadPrintDocumentAsImage,
+    homeworkImageFilename,
+    printDocument,
+  } from '../print'
   import type { DailyHomeworkReport } from '../types'
   import type { Subject } from '../types'
   import HomeworkPhotoPicker from './HomeworkPhotoPicker.svelte'
@@ -62,6 +67,8 @@
   let draftItems = $state<DraftItem[]>([])
   let formError = $state('')
   let saving = $state(false)
+  let exporting = $state(false)
+  let listError = $state('')
   let printReportId = $state<string | null>(null)
   let classFilter = $state('')
   let dateFilter = $state('')
@@ -235,8 +242,8 @@
     }
   }
 
-  async function saveReport(printAfter = false) {
-    if (saving) return
+  async function saveReport(after: 'none' | 'pdf' | 'image' = 'none') {
+    if (saving || exporting) return
     saving = true
     formError = ''
     try {
@@ -259,7 +266,8 @@
         : await appState.createDailyHomeworkReport(input)
       editorOpen = false
       editingId = null
-      if (printAfter) await openPrint(saved)
+      if (after === 'pdf') await openPrint(saved)
+      if (after === 'image') await openImage(saved)
     } catch (caught) {
       formError =
         caught instanceof Error ? caught.message : 'Could not save this Daily Homework Report.'
@@ -273,11 +281,56 @@
     await saveReport()
   }
 
-  async function openPrint(report: DailyHomeworkReport) {
+  async function withPrintReport(
+    report: DailyHomeworkReport,
+    run: () => Promise<void>,
+  ) {
     printReportId = report.id
     await tick()
-    await printDocument()
-    printReportId = null
+    try {
+      await run()
+    } finally {
+      printReportId = null
+    }
+  }
+
+  async function openPrint(report: DailyHomeworkReport) {
+    exporting = true
+    listError = ''
+    try {
+      await withPrintReport(report, () => printDocument())
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : 'Could not create this PDF.'
+      if (editorOpen) formError = message
+      else listError = message
+    } finally {
+      exporting = false
+    }
+  }
+
+  async function openImage(report: DailyHomeworkReport) {
+    exporting = true
+    listError = ''
+    try {
+      const group = appState.classGroups.find((item) => item.id === report.classGroupId)
+      await withPrintReport(report, () =>
+        downloadPrintDocumentAsImage(
+          homeworkImageFilename({
+            date: report.date,
+            className: group?.className,
+            section: group?.section,
+          }),
+        ),
+      )
+    } catch (caught) {
+      const message =
+        caught instanceof Error ? caught.message : 'Could not create an image of this report.'
+      if (editorOpen) formError = message
+      else listError = message
+    } finally {
+      exporting = false
+    }
   }
 
   async function deleteReport(report: DailyHomeworkReport) {
@@ -328,7 +381,7 @@
           Daily Homework
         </h1>
         <p class="mt-0.5 hidden text-[10px] font-bold uppercase tracking-[0.11em] text-ink-600 sm:block">
-          Class diaries and PDF reports
+          Class diaries, PDFs, and images
         </p>
       </div>
       {#if !editorOpen}
@@ -506,7 +559,7 @@
             rows={4}
             maxlength={600}
             placeholder="Message printed below the homework."
-            help="This note appears at the end of the PDF."
+            help="This note appears at the end of the PDF and image."
             required
           />
         </Card>
@@ -518,13 +571,21 @@
         {/if}
 
         <div class="mt-5 grid gap-2 sm:flex sm:justify-end">
-          <Button type="submit" variant="secondary" disabled={saving}>
+          <Button type="submit" variant="secondary" disabled={saving || exporting}>
             <FloppyDisk size={17} weight="bold" /> {saving ? 'Saving…' : 'Save report'}
           </Button>
           <Button
             type="button"
-            disabled={saving}
-            onclick={() => void saveReport(true)}
+            variant="secondary"
+            disabled={saving || exporting}
+            onclick={() => void saveReport('image')}
+          >
+            <ImageSquare size={17} weight="bold" /> {exporting ? 'Creating…' : 'Save as image'}
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || exporting}
+            onclick={() => void saveReport('pdf')}
           >
             <Printer size={17} weight="bold" /> Save & create PDF
           </Button>
@@ -540,13 +601,19 @@
             Daily homework reports
           </h2>
           <p class="mt-1 text-xs font-medium text-ink-600">
-            Save one diary per Class Group and date, ready to print or save as PDF.
+            Save one diary per Class Group and date, ready to print, save as PDF, or save as an image.
           </p>
         </div>
         <Button class="w-full sm:hidden" onclick={beginCreate}>
           <Plus size={17} weight="bold" /> New report
         </Button>
       </section>
+
+      {#if listError}
+        <p role="alert" class="mt-4 rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
+          {listError}
+        </p>
+      {/if}
 
       <Card class="mt-5 p-4">
         <div class="grid gap-3 sm:grid-cols-2">
@@ -604,14 +671,17 @@
                 </div>
                 <CaretRight size={19} weight="bold" class="mt-4 hidden shrink-0 text-ink-600 sm:block" />
               </div>
-              <div class="grid grid-cols-3 gap-1 border-t border-paper-200 bg-paper-50 p-2">
-                <Button variant="ghost" size="sm" onclick={() => beginEdit(report)}>
+              <div class="grid grid-cols-2 gap-1 border-t border-paper-200 bg-paper-50 p-2 sm:grid-cols-4">
+                <Button variant="ghost" size="sm" disabled={saving || exporting} onclick={() => beginEdit(report)}>
                   <NotePencil size={15} weight="bold" /> Edit
                 </Button>
-                <Button variant="ghost" size="sm" onclick={() => void openPrint(report)}>
+                <Button variant="ghost" size="sm" disabled={saving || exporting} onclick={() => void openPrint(report)}>
                   <Printer size={15} weight="bold" /> PDF
                 </Button>
-                <Button variant="ghost" size="sm" onclick={() => void deleteReport(report)}>
+                <Button variant="ghost" size="sm" disabled={saving || exporting} onclick={() => void openImage(report)}>
+                  <ImageSquare size={15} weight="bold" /> Image
+                </Button>
+                <Button variant="ghost" size="sm" disabled={saving || exporting} onclick={() => void deleteReport(report)}>
                   <Trash size={15} /> Delete
                 </Button>
               </div>

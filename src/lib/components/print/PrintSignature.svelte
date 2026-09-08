@@ -1,12 +1,14 @@
 <script lang="ts">
   let {
     signers,
+    class: className = 'mt-12',
   }: {
     signers: Array<{ label: string; name?: string }>
+    class?: string
   } = $props()
 </script>
 
-<footer class="mt-12 flex justify-end gap-16">
+<footer class={`flex justify-end gap-16 ${className}`}>
   {#each signers as signer (signer.label)}
     <div class="print-sign">
       <div class="print-sign-line"></div>

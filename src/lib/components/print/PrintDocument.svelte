@@ -32,6 +32,6 @@
   {/if}
 </svelte:head>
 
-<section class="print-doc hidden bg-white [print-color-adjust:exact] print:block">
+<section data-print-root class="print-doc hidden bg-white [print-color-adjust:exact] print:block">
   {@render children()}
 </section>
