@@ -25,7 +25,11 @@
     type InstallmentNumber,
     type SessionNumber,
   } from '../types'
-  import SchoolMark from './SchoolMark.svelte'
+  import PrintDocument from './print/PrintDocument.svelte'
+  import PrintFooter from './print/PrintFooter.svelte'
+  import PrintHeader from './print/PrintHeader.svelte'
+  import PrintKeyValue from './print/PrintKeyValue.svelte'
+  import PrintSignature from './print/PrintSignature.svelte'
 
   let { state: appState }: { state: AttendanceState } = $props()
 
@@ -135,48 +139,46 @@
   }
 </script>
 
-<div class="hidden bg-white text-black [print-color-adjust:exact] print:block">
+<PrintDocument orientation="landscape">
   {#each dayChunks.filter((chunk) => chunk.length) as chunk, chunkIndex (chunk[0])}
-    <section class="break-after-page p-4">
-      <header class="mb-3 border-t-4 border-register-800 pt-2">
-        <div class="flex items-end justify-between gap-5">
-          <div class="flex items-center gap-3">
-            <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
-            <div>
-              <p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Official monthly record</p>
-              <h1 class="mt-1 text-xl font-black uppercase tracking-wide">Students Attendance Register</h1>
-              <p class="mt-0.5 text-sm font-bold text-ink-800">{appState.settings?.schoolName}</p>
-            </div>
-          </div>
-          <p class="text-[8px] font-bold text-ink-600">Attendance page {chunkIndex + 1} of {dayChunks.filter((item) => item.length).length}</p>
-        </div>
-        <div class="mt-2 grid grid-cols-4 divide-x divide-register-200 border border-register-200 bg-register-50 text-[8px]">
-          <p class="p-1.5"><span class="block font-bold uppercase text-register-800">Class</span>{group?.className}</p>
-          <p class="p-1.5"><span class="block font-bold uppercase text-register-800">Section</span>{group?.section}</p>
-          <p class="p-1.5"><span class="block font-bold uppercase text-register-800">Month</span>{monthName}</p>
-          <p class="p-1.5"><span class="block font-bold uppercase text-register-800">Year</span>{register.year}</p>
-        </div>
-      </header>
+    <section class="break-after-page">
+      <PrintHeader
+        logoDataUrl={appState.settings?.logoDataUrl}
+        schoolName={appState.settings?.schoolName ?? 'School'}
+        eyebrow="Official monthly record"
+        title="Students Attendance Register"
+        subtitle={`${monthName} ${register.year} · Attendance page ${chunkIndex + 1} of ${dayChunks.filter((item) => item.length).length}`}
+      />
+      <div class="mt-3">
+        <PrintKeyValue
+          items={[
+            { key: 'Class', value: group?.className ?? '—' },
+            { key: 'Section', value: group?.section ?? '—' },
+            { key: 'Month', value: monthName },
+            { key: 'Year', value: String(register.year) },
+          ]}
+        />
+      </div>
 
-      <table class="w-full border-collapse text-center text-[7px]">
-        <thead class="bg-register-100 text-register-900">
+      <table class="print-table print-table-dense mt-3 text-center">
+        <thead>
           <tr>
-            <th rowspan="2" class="border border-register-900 p-1">Admission</th>
-            <th rowspan="2" class="border border-register-900 p-1">Roll</th>
-            <th rowspan="2" class="min-w-32 border border-register-900 p-1 text-left">Name with parentage</th>
+            <th rowspan="2">Admission</th>
+            <th rowspan="2">Roll</th>
+            <th rowspan="2" class="min-w-32 text-left">Name with parentage</th>
             {#each chunk as day (day)}
-              <th colspan="2" class={`border border-register-900 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>{day}</th>
+              <th colspan="2" class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>{day}</th>
             {/each}
             {#if chunkIndex === dayChunks.length - 1}
-              <th rowspan="2" class="border border-register-900 bg-register-50 p-1">Month</th>
-              <th rowspan="2" class="border border-register-900 bg-register-50 p-1">B/F</th>
-              <th rowspan="2" class="border border-register-900 p-1">Total</th>
+              <th rowspan="2">Month</th>
+              <th rowspan="2">B/F</th>
+              <th rowspan="2">Total</th>
             {/if}
           </tr>
           <tr>
             {#each chunk as day (day)}
-              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>F</th>
-              <th class={`border border-register-900 p-0.5 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 text-red-900' : ''}`}>S</th>
+              <th class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>F</th>
+              <th class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>S</th>
             {/each}
           </tr>
         </thead>
@@ -184,99 +186,181 @@
           {#each attendanceRows as row (row.enrollment.id)}
             {@const current = currentByEnrollment.get(row.enrollment.id) ?? 0}
             {@const brought = previousByEnrollment.get(row.enrollment.id) ?? 0}
-            <tr class="even:bg-paper-100/70">
-              <td class="border border-ink-800 p-1">{row.student.admissionNumber}</td>
-              <td class="border border-ink-800 p-1">{row.enrollment.rollNumber}</td>
-              <td class="border border-ink-800 p-1 text-left font-semibold">{row.student.name}</td>
+            <tr>
+              <td>{row.student.admissionNumber}</td>
+              <td>{row.enrollment.rollNumber}</td>
+              <td class="text-left font-semibold">{row.student.name}</td>
               {#each chunk as day (day)}
                 {#each [1, 2] as session (session)}
-                  <td class={`border border-ink-800 p-1 ${isHolidayDay(appState.holidays, register, day) ? 'bg-red-100 font-bold text-red-900' : ''}`}>
+                  <td class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-50 font-bold text-red-900' : ''}>
                     {isHolidayDay(appState.holidays, register, day) ? 'H' : !isEnrollmentActiveOn(row.enrollment, dateKey(register.year, register.month, day)) ? '–' : status(row.enrollment.id, day, session as SessionNumber)}
                   </td>
                 {/each}
               {/each}
               {#if chunkIndex === dayChunks.length - 1}
-                <td class="border border-ink-800 bg-register-50 p-1 font-bold">{current}</td>
-                <td class="border border-ink-800 bg-register-50 p-1 font-bold">{brought}</td>
-                <td class="border border-ink-800 bg-register-100 p-1 font-black">{current + brought}</td>
+                <td class="font-bold">{current}</td>
+                <td class="font-bold">{brought}</td>
+                <td class="font-bold">{current + brought}</td>
               {/if}
             </tr>
           {/each}
         </tbody>
         {#if attendanceRows.length}
-          <tfoot class="bg-register-100 font-black text-register-900">
+          <tfoot>
             <tr>
-              <th colspan="3" class="border border-register-900 p-1 text-left">Column totals</th>
+              <th colspan="3" class="text-left">Column totals</th>
               {#each chunk as day (day)}
                 {#each [1, 2] as session (session)}
-                  <td class="border border-register-900 p-1">{isHolidayDay(appState.holidays, register, day) ? 'H' : attendanceForSession(day, session as SessionNumber)}</td>
+                  <td>{isHolidayDay(appState.holidays, register, day) ? 'H' : attendanceForSession(day, session as SessionNumber)}</td>
                 {/each}
               {/each}
               {#if chunkIndex === dayChunks.length - 1}
-                <td class="border border-register-900 p-1">{visibleMonthAttendance}</td>
-                <td class="border border-register-900 p-1">{visiblePreviousAttendance}</td>
-                <td class="border border-register-900 p-1">{visibleMonthAttendance + visiblePreviousAttendance}</td>
+                <td>{visibleMonthAttendance}</td>
+                <td>{visiblePreviousAttendance}</td>
+                <td>{visibleMonthAttendance + visiblePreviousAttendance}</td>
               {/if}
             </tr>
           </tfoot>
         {/if}
       </table>
-      <div class="mt-2 flex items-center justify-between text-[7px] text-ink-600"><p>P = Present · A = Absent · L = Leave · H = Holiday</p><p>F = First timing · S = Second timing · Each timing = 0.5</p></div>
-      {#if holidayReasons(chunk).length}<p class="mt-1 text-[7px] font-semibold text-red-900">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>{/if}
+      <div class="mt-2 flex items-center justify-between text-[7px] text-register-700">
+        <p>P = Present · A = Absent · L = Leave · H = Holiday</p>
+        <p>F = First timing · S = Second timing · Each timing = 0.5</p>
+      </div>
+      {#if holidayReasons(chunk).length}
+        <p class="mt-1 text-[7px] font-semibold text-red-900">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>
+      {/if}
     </section>
   {/each}
 
-  <section class="break-after-page p-4">
-    <header class="mb-3 flex items-center gap-3 border-t-4 border-register-800 pt-2">
-      <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
-      <div><p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Financial record</p>
-      <h2 class="mt-1 text-lg font-black uppercase">Fees & Remarks</h2>
-      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p></div>
-    </header>
-    <table class="w-full border-collapse text-[8px]">
-      <thead class="bg-register-100 text-register-900">
-        <tr><th class="border border-register-900 p-1">Adm.</th><th class="border border-register-900 p-1">Roll</th><th class="border border-register-900 p-1 text-left">Name with parentage</th>{#each FEE_FIELDS as field (field.key)}<th class="border border-register-900 p-1">{field.shortLabel}</th>{/each}<th class="border border-register-900 bg-register-200 p-1">Total</th><th class="border border-register-900 p-1 text-left">Remarks</th></tr>
+  <section class="break-after-page">
+    <PrintHeader
+      logoDataUrl={appState.settings?.logoDataUrl}
+      schoolName={appState.settings?.schoolName ?? 'School'}
+      eyebrow="Financial record"
+      title="Fees & Remarks"
+      subtitle={`Class ${group?.className}, Section ${group?.section} · ${monthName} ${register.year}`}
+    />
+    <table class="print-table print-table-dense mt-3">
+      <thead>
+        <tr>
+          <th>Adm.</th>
+          <th>Roll</th>
+          <th class="text-left">Name with parentage</th>
+          {#each FEE_FIELDS as field (field.key)}<th>{field.shortLabel}</th>{/each}
+          <th>Total</th>
+          <th class="text-left">Remarks</th>
+        </tr>
       </thead>
       <tbody>
         {#each rows as row (row.enrollment.id)}
           {@const fees = feesByStudent.get(row.enrollment.id) ?? EMPTY_FEES}
-          <tr class="even:bg-paper-100/70"><td class="border border-ink-800 p-1">{row.student.admissionNumber}</td><td class="border border-ink-800 p-1">{row.enrollment.rollNumber}</td><td class="border border-ink-800 p-1 text-left font-semibold">{row.student.name}</td>{#each FEE_FIELDS as field (field.key)}<td class="border border-ink-800 p-1 text-right">{minorToDisplay(fees[field.key])}</td>{/each}<td class="border border-ink-800 bg-register-50 p-1 text-right font-bold">{minorToDisplay(feeGrandTotal(fees))}</td><td class="border border-ink-800 p-1 text-left">{remarksByEnrollment.get(row.enrollment.id) ?? ''}</td></tr>
+          <tr>
+            <td>{row.student.admissionNumber}</td>
+            <td>{row.enrollment.rollNumber}</td>
+            <td class="text-left font-semibold">{row.student.name}</td>
+            {#each FEE_FIELDS as field (field.key)}<td class="text-right">{minorToDisplay(fees[field.key])}</td>{/each}
+            <td class="text-right font-bold">{minorToDisplay(feeGrandTotal(fees))}</td>
+            <td class="text-left">{remarksByEnrollment.get(row.enrollment.id) ?? ''}</td>
+          </tr>
         {/each}
       </tbody>
-      <tfoot class="bg-register-100 font-black text-register-900"><tr><th class="border border-register-900 p-1 text-left" colspan="3">Totals</th>{#each FEE_FIELDS as field (field.key)}<td class="border border-register-900 p-1 text-right">{minorToDisplay(feeTotals[field.key])}</td>{/each}<td class="border border-register-900 bg-register-200 p-1 text-right">{minorToDisplay(feeGrandTotal(feeTotals))}</td><td class="border border-register-900"></td></tr></tfoot>
+      <tfoot>
+        <tr>
+          <th class="text-left" colspan="3">Totals</th>
+          {#each FEE_FIELDS as field (field.key)}<td class="text-right">{minorToDisplay(feeTotals[field.key])}</td>{/each}
+          <td class="text-right">{minorToDisplay(feeGrandTotal(feeTotals))}</td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
   </section>
 
-  <section class="p-4">
-    <header class="mb-4 flex items-center gap-3 border-t-4 border-register-800 pt-2">
-      <SchoolMark compact logoDataUrl={appState.settings?.logoDataUrl} alt={`${appState.settings?.schoolName ?? 'School'} logo`} />
-      <div><p class="text-[7px] font-black uppercase tracking-[0.2em] text-register-800">Monthly close</p>
-      <h2 class="mt-1 text-lg font-black uppercase">Monthly Summary</h2>
-      <p class="mt-0.5 text-[9px] font-bold text-ink-600">{appState.settings?.schoolName} · Class {group?.className}, Section {group?.section} · {monthName} {register.year}</p></div>
-    </header>
+  <section>
+    <PrintHeader
+      logoDataUrl={appState.settings?.logoDataUrl}
+      schoolName={appState.settings?.schoolName ?? 'School'}
+      eyebrow="Monthly close"
+      title="Monthly Summary"
+      subtitle={`Class ${group?.className}, Section ${group?.section} · ${monthName} ${register.year}`}
+    />
 
-    <table class="mb-5 w-full border-collapse text-[10px]">
+    <table class="print-table mt-4">
       <tbody>
-        <tr><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Students at beginning</th><td class="border border-register-900 p-2 font-bold">{movement.beginning}</td><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Students at end</th><td class="border border-register-900 p-2 font-bold">{movement.end}</td></tr>
-        <tr><th class="border border-register-900 bg-register-50 p-2 text-left">Admitted during month</th><td class="border border-register-900 p-2 font-bold">{movement.admitted}</td><th class="border border-register-900 bg-register-50 p-2 text-left">Struck off during month</th><td class="border border-register-900 p-2 font-bold">{movement.struckOff}</td></tr>
-        <tr><th class="border border-register-900 bg-register-50 p-2 text-left">Total timings</th><td class="border border-register-900 p-2 font-bold">{timings}</td><th class="border border-register-900 bg-register-50 p-2 text-left">Attendance in month</th><td class="border border-register-900 p-2 font-bold">{monthAttendance}</td></tr>
-        <tr><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Academic year attendance</th><td class="border border-register-900 p-2 font-bold">{monthAttendance + previousAttendance}</td><th class="border border-register-900 bg-register-100 p-2 text-left text-register-900">Average attendance</th><td class="border border-register-900 p-2 font-bold">{timings ? (monthAttendance / (timings * ATTENDANCE_MARK_VALUE)).toFixed(2) : '0.00'}</td></tr>
+        <tr>
+          <th class="text-left">Students at beginning</th>
+          <td class="font-bold">{movement.beginning}</td>
+          <th class="text-left">Students at end</th>
+          <td class="font-bold">{movement.end}</td>
+        </tr>
+        <tr>
+          <th class="text-left">Admitted during month</th>
+          <td class="font-bold">{movement.admitted}</td>
+          <th class="text-left">Struck off during month</th>
+          <td class="font-bold">{movement.struckOff}</td>
+        </tr>
+        <tr>
+          <th class="text-left">Total timings</th>
+          <td class="font-bold">{timings}</td>
+          <th class="text-left">Attendance in month</th>
+          <td class="font-bold">{monthAttendance}</td>
+        </tr>
+        <tr>
+          <th class="text-left">Academic year attendance</th>
+          <td class="font-bold">{monthAttendance + previousAttendance}</td>
+          <th class="text-left">Average attendance</th>
+          <td class="font-bold">{timings ? (monthAttendance / (timings * ATTENDANCE_MARK_VALUE)).toFixed(2) : '0.00'}</td>
+        </tr>
       </tbody>
     </table>
 
-    <h3 class="mb-2 text-sm font-black uppercase text-register-900">Installment collection</h3>
-    <table class="w-full border-collapse text-[8px]">
-      <thead class="bg-register-100 text-register-900"><tr><th class="border border-register-900 p-1">Installment</th><th class="border border-register-900 p-1">Students</th><th class="border border-register-900 p-1">At rate of</th>{#each FEE_FIELDS as field (field.key)}<th class="border border-register-900 p-1">{field.shortLabel}</th>{/each}<th class="border border-register-900 bg-register-200 p-1">Total</th><th class="border border-register-900 p-1">Receiver / signature</th></tr></thead>
+    <h3 class="print-section-title mt-5 mb-2">Installment collection</h3>
+    <table class="print-table print-table-dense">
+      <thead>
+        <tr>
+          <th>Installment</th>
+          <th>Students</th>
+          <th>At rate of</th>
+          {#each FEE_FIELDS as field (field.key)}<th>{field.shortLabel}</th>{/each}
+          <th>Total</th>
+          <th>Receiver / signature</th>
+        </tr>
+      </thead>
       <tbody>
         {#each [1, 2, 3] as installment (installment)}
           {@const amounts = feesForInstallment(appState.feeEntries, register.id, installment as InstallmentNumber)}
           {@const meta = appState.installmentMeta.find((item) => item.registerId === register.id && item.installment === installment)}
-          <tr><th class="border border-ink-800 bg-register-50 p-2">{installment === 1 ? '1st' : installment === 2 ? '2nd' : '3rd'}</th><td class="border border-ink-800 p-2">{installmentStudentCount(appState.feeEntries, register.id, installment as InstallmentNumber)}</td><td class="border border-ink-800 p-2 text-right">{minorToDisplay(meta?.rate ?? 0)}</td>{#each FEE_FIELDS as field (field.key)}<td class="border border-ink-800 p-2 text-right">{minorToDisplay(amounts[field.key])}</td>{/each}<td class="border border-ink-800 bg-register-50 p-2 text-right font-bold">{minorToDisplay(feeGrandTotal(amounts))}</td><td class="border border-ink-800 p-2">{meta?.receiverName}<div class="mt-4 border-b border-ink-800"></div></td></tr>
+          <tr>
+            <th>{installment === 1 ? '1st' : installment === 2 ? '2nd' : '3rd'}</th>
+            <td>{installmentStudentCount(appState.feeEntries, register.id, installment as InstallmentNumber)}</td>
+            <td class="text-right">{minorToDisplay(meta?.rate ?? 0)}</td>
+            {#each FEE_FIELDS as field (field.key)}<td class="text-right">{minorToDisplay(amounts[field.key])}</td>{/each}
+            <td class="text-right font-bold">{minorToDisplay(feeGrandTotal(amounts))}</td>
+            <td>
+              {meta?.receiverName}
+              <div class="mt-4 border-b border-register-900"></div>
+            </td>
+          </tr>
         {/each}
       </tbody>
-      <tfoot class="bg-register-100 font-black text-register-900"><tr><th class="border border-register-900 p-1 text-left">Total</th><td class="border border-register-900 p-1 text-center">{totalInstallmentStudents}</td><td class="border border-register-900 p-1 text-right">{minorToDisplay(totalRate)}</td>{#each FEE_FIELDS as field (field.key)}<td class="border border-register-900 p-1 text-right">{minorToDisplay(installmentTotals[field.key])}</td>{/each}<td class="border border-register-900 bg-register-200 p-1 text-right">{minorToDisplay(feeGrandTotal(installmentTotals))}</td><td class="border border-register-900"></td></tr></tfoot>
+      <tfoot>
+        <tr>
+          <th class="text-left">Total</th>
+          <td class="text-center">{totalInstallmentStudents}</td>
+          <td class="text-right">{minorToDisplay(totalRate)}</td>
+          {#each FEE_FIELDS as field (field.key)}<td class="text-right">{minorToDisplay(installmentTotals[field.key])}</td>{/each}
+          <td class="text-right">{minorToDisplay(feeGrandTotal(installmentTotals))}</td>
+          <td></td>
+        </tr>
+      </tfoot>
     </table>
 
-    <div class="mt-14 ml-auto w-64 text-center"><div class="border-b-2 border-register-800"></div><p class="mt-2 text-xs font-black text-register-900">Class Incharge’s Signature</p><p class="mt-1 text-[10px] text-ink-600">{appState.settings?.classInchargeName || 'Name and signature'}</p></div>
+    <PrintSignature
+      signers={[{ label: 'Class incharge signature', name: appState.settings?.classInchargeName || 'Name and signature' }]}
+    />
+    <PrintFooter
+      schoolName={appState.settings?.schoolName ?? 'School'}
+      documentLabel="Monthly Attendance Register"
+    />
   </section>
-</div>
+</PrintDocument>

@@ -115,6 +115,17 @@ describe("offline database backup", () => {
       createdAt: "2026-08-15T00:00:00.000Z",
       updatedAt: "2026-08-15T00:00:00.000Z",
     });
+    await db.homeworkReports.put({
+      id: "homework-photo-1",
+      classGroupId: "class-1",
+      date: "2026-08-16",
+      inchargeName: "Class Incharge",
+      parentNote: "Please sign the photographed diary.",
+      items: [],
+      photoDataUrl: "data:image/jpeg;base64,/9j/diary",
+      createdAt: "2026-08-16T00:00:00.000Z",
+      updatedAt: "2026-08-16T00:00:00.000Z",
+    });
 
     const backup = await exportAttendanceDatabase();
     await db.settings.clear();
@@ -148,6 +159,9 @@ describe("offline database backup", () => {
     expect(
       (await db.homeworkReports.get("homework-1"))?.items[0]?.details,
     ).toBe("Complete exercise 4.");
+    expect((await db.homeworkReports.get("homework-photo-1"))?.photoDataUrl).toBe(
+      "data:image/jpeg;base64,/9j/diary",
+    );
   });
 
   it("enforces unique admission numbers in device-local storage", async () => {

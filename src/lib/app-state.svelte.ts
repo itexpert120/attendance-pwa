@@ -50,6 +50,7 @@ type DailyHomeworkInput = Pick<
   "classGroupId" | "date" | "inchargeName" | "parentNote"
 > & {
   items: Array<{ subjectId: string; details: string }>;
+  photoDataUrl?: string;
 };
 
 export class AttendanceState {
@@ -856,7 +857,27 @@ export class AttendanceState {
     if (!this.classGroups.some((group) => group.id === input.classGroupId)) {
       throw new Error("Select a Class Group.");
     }
-    if (!input.items.length) throw new Error("Add at least one Homework Item.");
+    const photoDataUrl = input.photoDataUrl?.trim() || undefined;
+    if (photoDataUrl && input.items.length) {
+      throw new Error(
+        "Use either a diary photo or typed Homework Items, not both.",
+      );
+    }
+    if (!photoDataUrl && !input.items.length) {
+      throw new Error(
+        "Add at least one Homework Item or attach a diary photo.",
+      );
+    }
+    if (photoDataUrl) {
+      return {
+        classGroupId: input.classGroupId,
+        date: input.date,
+        inchargeName,
+        parentNote,
+        items: [],
+        photoDataUrl,
+      };
+    }
     if (input.items.some((item) => !item.subjectId || !item.details.trim())) {
       throw new Error(
         "Every Homework Item needs a Subject and assignment details.",
@@ -892,6 +913,7 @@ export class AttendanceState {
         details: item.details.trim(),
         order,
       })),
+      photoDataUrl: undefined,
     };
   }
 

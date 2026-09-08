@@ -1,8 +1,11 @@
 @import "tailwindcss";
+@import "@fontsource/merriweather/400.css";
+@import "@fontsource/merriweather/700.css";
 
 @theme {
   --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-print: "Merriweather", ui-serif, Georgia, "Times New Roman", serif;
   --color-ink-950: #18181b;
   --color-ink-800: #3f3f46;
   --color-ink-600: #71717a;
@@ -18,4 +21,192 @@
   --color-register-900: #14532d;
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 14px rgb(0 0 0 / 0.04);
   --shadow-lifted: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.1);
+}
+
+.print-doc {
+  color: #14532d;
+  background: #ffffff;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.print-eyebrow {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #15803d;
+}
+
+.print-title {
+  font-family: var(--font-print);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #14532d;
+}
+
+.print-subtitle {
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: #4d7c5f;
+}
+
+.print-section-title {
+  font-family: var(--font-print);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #14532d;
+}
+
+.print-kv {
+  display: grid;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.print-kv > div {
+  padding: 10px 12px;
+  border-right: 1px solid #bbf7d0;
+}
+
+.print-kv > div:last-child {
+  border-right: 0;
+}
+
+.print-kv dt {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4d7c5f;
+}
+
+.print-kv dd {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.print-stats {
+  display: grid;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f0fdf4;
+  text-align: center;
+}
+
+.print-stats > div {
+  padding: 10px 8px;
+  border-right: 1px solid #bbf7d0;
+}
+
+.print-stats > div:last-child {
+  border-right: 0;
+}
+
+.print-stat-value {
+  font-family: var(--font-print);
+  font-size: 16px;
+  font-weight: 700;
+  color: #14532d;
+}
+
+.print-stat-label {
+  margin-top: 2px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4d7c5f;
+}
+
+.print-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.print-table th {
+  background: #15803d;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid #166534;
+  padding: 8px 10px;
+}
+
+.print-table td {
+  border: 1px solid #bbf7d0;
+  padding: 8px 10px;
+  color: #14532d;
+  vertical-align: top;
+}
+
+.print-table tbody tr:nth-child(even) {
+  background: #f0fdf4;
+}
+
+.print-table tfoot td,
+.print-table tfoot th {
+  background: #f0fdf4;
+  color: #14532d;
+  font-weight: 700;
+  border: 1px solid #bbf7d0;
+}
+
+.print-table-dense th,
+.print-table-dense td {
+  padding: 3px 4px;
+  font-size: 7px;
+}
+
+.print-note {
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  background: #f0fdf4;
+  padding: 12px 14px;
+}
+
+.print-sign {
+  min-width: 10rem;
+  text-align: center;
+}
+
+.print-sign-line {
+  border-bottom: 1px solid #14532d;
+  height: 36px;
+}
+
+.print-sign-label {
+  margin-top: 6px;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4d7c5f;
+}
+
+.print-sign-name {
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #14532d;
+}
+
+.print-footer {
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid #bbf7d0;
+  font-size: 8px;
+  color: #4d7c5f;
 }

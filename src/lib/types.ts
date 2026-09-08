@@ -101,6 +101,8 @@ export interface DailyHomeworkReport {
   inchargeName: string;
   parentNote: string;
   items: HomeworkItem[];
+  /** Optional so typed diaries saved before photo entry remain compatible. */
+  photoDataUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

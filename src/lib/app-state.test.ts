@@ -406,4 +406,97 @@ describe("attendance state hot-path updates", () => {
       }),
     ).rejects.toThrow("required");
   });
+
+  it("saves a Daily Homework Report from a diary photo instead of Homework Items", async () => {
+    const state = createState();
+    state.classGroups = [
+      { id: "class-1", className: "7", section: "A", createdAt: "" },
+    ];
+    await db.classGroups.put(state.classGroups[0]!);
+
+    const created = await state.createDailyHomeworkReport({
+      classGroupId: "class-1",
+      date: "2026-09-01",
+      inchargeName: "Ms Fatima",
+      parentNote: "Please sign after checking the work.",
+      items: [],
+      photoDataUrl: "data:image/jpeg;base64,/9j/diary",
+    });
+
+    expect(created.items).toEqual([]);
+    expect(created.photoDataUrl).toBe("data:image/jpeg;base64,/9j/diary");
+    expect((await db.homeworkReports.get(created.id))?.photoDataUrl).toBe(
+      "data:image/jpeg;base64,/9j/diary",
+    );
+  });
+
+  it("rejects a Daily Homework Report that mixes a diary photo with Homework Items", async () => {
+    const state = createState();
+    state.classGroups = [
+      { id: "class-1", className: "7", section: "A", createdAt: "" },
+    ];
+    await db.classGroups.put(state.classGroups[0]!);
+    const subject = await state.saveSubject("Mathematics");
+
+    await expect(
+      state.createDailyHomeworkReport({
+        classGroupId: "class-1",
+        date: "2026-09-01",
+        inchargeName: "Ms Fatima",
+        parentNote: "Please sign.",
+        items: [{ subjectId: subject.id, details: "Exercise 4." }],
+        photoDataUrl: "data:image/jpeg;base64,/9j/diary",
+      }),
+    ).rejects.toThrow("not both");
+  });
+
+  it("rejects a Daily Homework Report with neither Homework Items nor a diary photo", async () => {
+    const state = createState();
+    state.classGroups = [
+      { id: "class-1", className: "7", section: "A", createdAt: "" },
+    ];
+    await db.classGroups.put(state.classGroups[0]!);
+
+    await expect(
+      state.createDailyHomeworkReport({
+        classGroupId: "class-1",
+        date: "2026-09-01",
+        inchargeName: "Ms Fatima",
+        parentNote: "Please sign.",
+        items: [],
+      }),
+    ).rejects.toThrow("diary photo");
+  });
+
+  it("clears the diary photo when a Daily Homework Report is updated to typed Homework Items", async () => {
+    const state = createState();
+    state.classGroups = [
+      { id: "class-1", className: "7", section: "A", createdAt: "" },
+    ];
+    await db.classGroups.put(state.classGroups[0]!);
+    const subject = await state.saveSubject("Mathematics");
+
+    const created = await state.createDailyHomeworkReport({
+      classGroupId: "class-1",
+      date: "2026-09-01",
+      inchargeName: "Ms Fatima",
+      parentNote: "Please sign.",
+      items: [],
+      photoDataUrl: "data:image/jpeg;base64,/9j/diary",
+    });
+
+    const updated = await state.updateDailyHomeworkReport(created.id, {
+      classGroupId: "class-1",
+      date: "2026-09-01",
+      inchargeName: "Ms Fatima",
+      parentNote: "Please sign.",
+      items: [{ subjectId: subject.id, details: "Complete exercise 4." }],
+    });
+
+    expect(updated.items).toEqual([
+      { subjectId: subject.id, details: "Complete exercise 4.", order: 0 },
+    ]);
+    expect(updated.photoDataUrl).toBeUndefined();
+    expect((await db.homeworkReports.get(created.id))?.photoDataUrl).toBeUndefined();
+  });
 });

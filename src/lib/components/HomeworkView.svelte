@@ -6,6 +6,7 @@
   import Archive from 'phosphor-svelte/lib/Archive'
   import BookOpen from 'phosphor-svelte/lib/BookOpen'
   import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank'
+  import Camera from 'phosphor-svelte/lib/Camera'
   import CaretRight from 'phosphor-svelte/lib/CaretRight'
   import Check from 'phosphor-svelte/lib/Check'
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk'
@@ -19,6 +20,7 @@
   import { dateKey } from '../calculations'
   import type { DailyHomeworkReport } from '../types'
   import type { Subject } from '../types'
+  import HomeworkPhotoPicker from './HomeworkPhotoPicker.svelte'
   import PrintHomeworkReport from './PrintHomeworkReport.svelte'
   import SchoolMark from './SchoolMark.svelte'
   import Badge from './ui/Badge.svelte'
@@ -54,6 +56,8 @@
   let reportDate = $state(today)
   let inchargeName = $state('')
   let parentNote = $state(defaultParentNote)
+  let draftPhoto = $state('')
+  let entryMode = $state<'typed' | 'photo'>('typed')
   let draftItems = $state<DraftItem[]>([])
   let formError = $state('')
   let saving = $state(false)
@@ -114,6 +118,8 @@
     reportDate = today
     inchargeName = appState.settings?.classInchargeName ?? ''
     parentNote = defaultParentNote
+    draftPhoto = ''
+    entryMode = 'typed'
     draftItems = activeSubjects[0]
       ? [{ key: nextItemKey(), subjectId: activeSubjects[0].id, details: '' }]
       : []
@@ -127,6 +133,8 @@
     reportDate = report.date
     inchargeName = report.inchargeName
     parentNote = report.parentNote
+    draftPhoto = report.photoDataUrl ?? ''
+    entryMode = report.photoDataUrl ? 'photo' : 'typed'
     draftItems = [...report.items]
       .sort((a, b) => a.order - b.order)
       .map((item) => ({ ...item, key: nextItemKey() }))
@@ -213,6 +221,19 @@
     draftItems = reordered
   }
 
+  function setEntryMode(mode: 'typed' | 'photo') {
+    if (mode === entryMode) return
+    entryMode = mode
+    if (mode === 'photo') {
+      draftItems = []
+      return
+    }
+    draftPhoto = ''
+    if (!draftItems.length && activeSubjects[0]) {
+      draftItems = [{ key: nextItemKey(), subjectId: activeSubjects[0].id, details: '' }]
+    }
+  }
+
   async function saveReport(printAfter = false) {
     if (saving) return
     saving = true
@@ -223,10 +244,14 @@
         date: reportDate,
         inchargeName,
         parentNote,
-        items: draftItems.map((item) => ({
-          subjectId: item.subjectId,
-          details: item.details,
-        })),
+        items:
+          entryMode === 'typed'
+            ? draftItems.map((item) => ({
+                subjectId: item.subjectId,
+                details: item.details,
+              }))
+            : [],
+        photoDataUrl: entryMode === 'photo' ? draftPhoto : undefined,
       }
       const saved = editingId
         ? await appState.updateDailyHomeworkReport(editingId, input)
@@ -325,7 +350,7 @@
               {editingId ? 'Update homework report' : 'New homework report'}
             </h2>
             <p class="mt-1 text-xs font-medium text-ink-600">
-              Add the work Students should complete, then save or create a PDF.
+              Type Subject assignments, or attach one photo of the written diary.
             </p>
           </div>
           <Button type="button" variant="ghost" onclick={cancelEdit}>Cancel</Button>
@@ -354,25 +379,52 @@
               <p class="text-[10px] font-extrabold uppercase tracking-[0.1em] text-register-700">
                 Diary / Homework
               </p>
-              <h2 class="mt-1 font-display text-xl font-semibold">Subject assignments</h2>
+              <h2 class="mt-1 font-display text-xl font-semibold">
+                {entryMode === 'photo' ? 'Photographed diary' : 'Subject assignments'}
+              </h2>
             </div>
             <div class="grid grid-cols-2 gap-2 sm:flex">
-              <Button type="button" variant="soft" size="sm" onclick={() => { subjectError = ''; subjectsOpen = true }}>
-                <BookOpen size={15} weight="bold" /> Manage Subjects
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!firstUnusedSubjectId()}
-                onclick={addItem}
-              >
-                <Plus size={15} weight="bold" /> Add homework row
-              </Button>
+              {#if entryMode === 'typed'}
+                <Button type="button" variant="soft" size="sm" onclick={() => { subjectError = ''; subjectsOpen = true }}>
+                  <BookOpen size={15} weight="bold" /> Manage Subjects
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={!firstUnusedSubjectId()}
+                  onclick={addItem}
+                >
+                  <Plus size={15} weight="bold" /> Add homework row
+                </Button>
+              {/if}
             </div>
           </div>
 
-          {#if draftItems.length}
+          <div class="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-paper-200 bg-white p-1">
+            <Button
+              type="button"
+              variant={entryMode === 'typed' ? 'primary' : 'ghost'}
+              size="sm"
+              onclick={() => setEntryMode('typed')}
+            >
+              <Notebook size={15} weight="bold" /> Type subjects
+            </Button>
+            <Button
+              type="button"
+              variant={entryMode === 'photo' ? 'primary' : 'ghost'}
+              size="sm"
+              onclick={() => setEntryMode('photo')}
+            >
+              <Camera size={15} weight="bold" /> Attach photo
+            </Button>
+          </div>
+
+          {#if entryMode === 'photo'}
+            <Card class="p-4 sm:p-5">
+              <HomeworkPhotoPicker bind:value={draftPhoto} />
+            </Card>
+          {:else if draftItems.length}
             <Card class="overflow-hidden">
               <div class="grid grid-cols-[8rem_minmax(0,1fr)] bg-register-800 text-white sm:grid-cols-[15rem_minmax(0,1fr)_8rem]">
                 <div class="border-r border-white/20 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.1em] sm:px-4">Subject</div>
@@ -521,20 +573,32 @@
           {#each filteredReports as report (report.id)}
             <Card class="overflow-hidden">
               <div class="flex items-start gap-4 p-4">
-                <div class="grid size-14 shrink-0 place-items-center rounded-2xl border border-register-100 bg-register-50 text-register-800">
-                  <Notebook size={27} weight="duotone" />
+                <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-register-100 bg-register-50 text-register-800">
+                  {#if report.photoDataUrl}
+                    <img src={report.photoDataUrl} alt="" class="size-full object-cover" />
+                  {:else}
+                    <Notebook size={27} weight="duotone" />
+                  {/if}
                 </div>
                 <div class="min-w-0 flex-1">
                   <div class="flex flex-wrap items-center gap-2">
                     <h3 class="font-display text-xl font-semibold">Class {groupLabel(report)}</h3>
-                    <Badge tone="info">{report.items.length} Subject{report.items.length === 1 ? '' : 's'}</Badge>
+                    {#if report.photoDataUrl}
+                      <Badge tone="success">Photo diary</Badge>
+                    {:else}
+                      <Badge tone="info">{report.items.length} Subject{report.items.length === 1 ? '' : 's'}</Badge>
+                    {/if}
                   </div>
                   <p class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-ink-600">
                     <span class="inline-flex items-center gap-1"><CalendarBlank size={13} weight="bold" /> {dateLabel(report.date)}</span>
                     <span>Incharge: {report.inchargeName}</span>
                   </p>
                   <p class="mt-2 line-clamp-2 text-xs font-medium leading-5 text-ink-800">
-                    {report.items.map((item) => subjectName(item.subjectId)).join(' · ')}
+                    {#if report.photoDataUrl}
+                      Photographed diary for parents to review.
+                    {:else}
+                      {report.items.map((item) => subjectName(item.subjectId)).join(' · ')}
+                    {/if}
                   </p>
                 </div>
                 <CaretRight size={19} weight="bold" class="mt-4 hidden shrink-0 text-ink-600 sm:block" />

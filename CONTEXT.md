@@ -69,7 +69,7 @@ The editable result-entry state derived from a Test's Results: Not Started when 
 _Avoid_: Test status, submission state
 
 **Daily Homework Report**:
-A saved diary for exactly one Class Group and date. It contains the incharge name used on that day, one or more Homework Items, and a Parent Note, and can be printed or saved as a PDF.
+A saved diary for exactly one Class Group and date. It contains the incharge name used on that day, a Parent Note, and either one or more Homework Items or one diary photo, and can be printed or saved as a PDF.
 _Avoid_: Test Report, attendance report, live form
 
 **Homework Item**:

@@ -9,12 +9,18 @@ function loadImage(url: string) {
   });
 }
 
-export async function resizeImageFile(file: File, maxDimension = 512) {
+export async function resizeImageFile(
+  file: File,
+  maxDimension = 512,
+  maxBytes = 5 * 1024 * 1024,
+) {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     throw new Error("Choose a PNG, JPG, or WebP image.");
   }
-  if (file.size > 5 * 1024 * 1024) {
-    throw new Error("Image must be smaller than 5 MB.");
+  if (file.size > maxBytes) {
+    throw new Error(
+      `Image must be smaller than ${Math.round(maxBytes / (1024 * 1024))} MB.`,
+    );
   }
 
   const url = URL.createObjectURL(file);
