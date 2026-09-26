@@ -3,6 +3,7 @@
   import DotsThreeVertical from 'phosphor-svelte/lib/DotsThreeVertical'
   import MagnifyingGlass from 'phosphor-svelte/lib/MagnifyingGlass'
   import Plus from 'phosphor-svelte/lib/Plus'
+  import UserCheck from 'phosphor-svelte/lib/UserCheck'
   import UserPlus from 'phosphor-svelte/lib/UserPlus'
   import Users from 'phosphor-svelte/lib/Users'
   import { router } from 'svelte-spa-router'
@@ -102,6 +103,12 @@
     struckOffOn = row.enrollment.struckOffOn ?? ''
     error = ''
     studentOpen = true
+  }
+
+  // Clears the struck-off date and saves, so the student is active again.
+  function restoreStudent() {
+    struckOffOn = ''
+    ;(document.getElementById('student-form') as HTMLFormElement | null)?.requestSubmit()
   }
 
   async function saveStudent(event: SubmitEvent) {
@@ -258,6 +265,9 @@
     {#if error}<p role="alert" class="type-body-medium rounded-xl bg-error-container px-4 py-3 text-on-error-container">{error}</p>{/if}
   </form>
   {#snippet footer()}
+    {#if editing?.enrollment.struckOffOn}
+      <Button variant="outlined" class="mr-auto" disabled={saving} onclick={restoreStudent}><UserCheck size={18} /> Restore</Button>
+    {/if}
     <Button variant="ghost" onclick={() => (studentOpen = false)}>Cancel</Button>
     <Button type="submit" form="student-form" disabled={saving}>{saving ? 'Saving…' : editing ? 'Save' : 'Add student'}</Button>
   {/snippet}

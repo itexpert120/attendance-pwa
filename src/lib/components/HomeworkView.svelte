@@ -433,7 +433,7 @@
 <Fab icon={Plus} text="New report" label="New homework report" onclick={() => navigate(paths.homeworkNew())} />
 {/if}
 
-<Modal open={actionReport !== null} title={actionReport ? `Class ${groupLabel(actionReport)}` : 'Homework report'} description={actionReport ? `${dateLabel(actionReport.date)} · Incharge: ${actionReport.inchargeName}` : undefined} size="sm">
+<Modal bind:open={() => actionReport !== null, (open) => { if (!open) actionReport = null }} title={actionReport ? `Class ${groupLabel(actionReport)}` : 'Homework report'} description={actionReport ? `${dateLabel(actionReport.date)} · Incharge: ${actionReport.inchargeName}` : undefined} size="sm">
   {#if actionReport}
     <ListGroup muted>
       <ListRow icon={NotePencil} tone="blue" label="Edit report" onclick={() => act((report) => navigate(paths.homeworkEdit(report.id)))} />
