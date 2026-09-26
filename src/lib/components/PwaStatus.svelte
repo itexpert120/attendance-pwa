@@ -2,11 +2,11 @@
   import RefreshCw from 'phosphor-svelte/lib/ArrowClockwise'
   import Check from 'phosphor-svelte/lib/Check'
   import Download from 'phosphor-svelte/lib/DownloadSimple'
-  import LockKey from 'phosphor-svelte/lib/LockKey'
   import Phone from 'phosphor-svelte/lib/Phone'
   import WifiOff from 'phosphor-svelte/lib/WifiSlash'
   import X from 'phosphor-svelte/lib/X'
   import { registerSW } from 'virtual:pwa-register'
+  import BarButton from './ui/BarButton.svelte'
   import Button from './ui/Button.svelte'
   import Modal from './ui/Modal.svelte'
 
@@ -16,6 +16,15 @@
   }
 
   let online = $state(typeof navigator === 'undefined' ? true : navigator.onLine)
+  // Offline is normal for this app, so the notice is a brief toast rather than a permanent banner.
+  let offlineNotice = $state(false)
+  let offlineTimer = 0
+
+  function showOfflineNotice() {
+    offlineNotice = true
+    clearTimeout(offlineTimer)
+    offlineTimer = window.setTimeout(() => (offlineNotice = false), 4000)
+  }
   let installPrompt = $state<BeforeInstallPromptEvent | null>(null)
   let offlineReady = $state(false)
   let needRefresh = $state(false)
@@ -28,7 +37,11 @@
 
   $effect(() => {
     const onOnline = () => (online = true)
-    const onOffline = () => (online = false)
+    const onOffline = () => {
+      online = false
+      showOfflineNotice()
+    }
+    if (!online) showOfflineNotice()
     const onInstall = (event: Event) => {
       event.preventDefault()
       installPrompt = event as BeforeInstallPromptEvent
@@ -38,7 +51,10 @@
     window.addEventListener('beforeinstallprompt', onInstall)
     updateServiceWorker = registerSW({
       immediate: true,
-      onOfflineReady: () => (offlineReady = true),
+      onOfflineReady: () => {
+        offlineReady = true
+        window.setTimeout(() => (offlineReady = false), 3500)
+      },
       onNeedRefresh: () => (needRefresh = true),
     })
     return () => {
@@ -76,31 +92,30 @@
 </script>
 
 <div class="print:hidden">
-  {#if !online}
-    <div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full bg-ink-950 px-4 py-2 text-xs font-bold text-white shadow-xl">
-      <WifiOff size={15} /> Offline · changes save on this device
+  {#if !online && offlineNotice}
+    <div role="status" class="kb-hide fixed inset-x-4 bottom-[calc(var(--tab-bar-height)+var(--safe-bottom)+0.75rem)] z-50 mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-lg bg-inverse-surface py-1 pl-4 pr-2 text-inverse-on-surface shadow-[var(--shadow-e3)] md:bottom-6">
+      <WifiOff size={18} class="shrink-0" /><p class="type-body-medium min-w-0 flex-1">Offline — changes save on this device</p>
     </div>
   {:else if installPrompt && !dismissed}
-    <div class="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-register-100 bg-white p-3 shadow-xl">
-      <div class="grid size-9 shrink-0 place-items-center rounded-lg bg-register-50 text-register-700"><Download size={18} /></div>
+    <div class="fixed inset-x-3 top-[calc(var(--safe-top)+0.5rem)] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-surface-container-lowest p-3 pl-4 shadow-[var(--shadow-e2)]">
+      <Download size={22} class="shrink-0 text-primary" />
       <div class="min-w-0 flex-1">
-        <p class="text-sm font-bold text-ink-950">Install for reliable offline access</p>
-        <p class="text-[11px] text-ink-600">The register works without internet after installation.</p>
+        <p class="type-title-small text-on-surface">Install the app</p>
+        <p class="type-body-small text-on-surface-variant">Works without internet once installed.</p>
       </div>
-      <Button size="sm" onclick={requestInstall}><LockKey size={15} weight="bold" /> Install</Button>
-      <Button size="icon" variant="ghost" title="Dismiss" onclick={() => (dismissed = true)}><X size={17} /></Button>
+      <Button size="sm" variant="secondary" onclick={requestInstall}>Install</Button>
+      <BarButton label="Dismiss" onclick={() => (dismissed = true)}><X /></BarButton>
     </div>
   {:else if needRefresh && !dismissed}
-    <div class="fixed inset-x-3 bottom-3 z-40 mx-auto flex max-w-xl items-center gap-3 rounded-xl border border-sky-200 bg-white p-3 shadow-xl">
-      <RefreshCw size={19} class="shrink-0 text-sky-700" />
-      <p class="min-w-0 flex-1 text-sm font-semibold text-ink-950">A new app version is ready.</p>
-      <Button size="sm" onclick={() => void updateServiceWorker?.()}>Update</Button>
-      <Button size="icon" variant="ghost" title="Later" onclick={() => (dismissed = true)}><X size={17} /></Button>
+    <div role="status" class="kb-hide fixed inset-x-4 bottom-[calc(var(--tab-bar-height)+var(--safe-bottom)+0.75rem)] z-50 mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-lg bg-inverse-surface py-1 pl-4 pr-2 text-inverse-on-surface shadow-[var(--shadow-e3)] md:bottom-6">
+      <RefreshCw size={18} class="shrink-0" /><p class="type-body-medium min-w-0 flex-1">A new version is ready</p>
+      <button type="button" class="state-layer type-label-large h-10 rounded-full px-3 text-inverse-primary" onclick={() => void updateServiceWorker?.()}>Update</button>
+      <button type="button" class="state-layer grid size-10 place-items-center rounded-full" aria-label="Later" onclick={() => (dismissed = true)}><X size={20} /></button>
     </div>
   {:else if offlineReady && !dismissed}
-    <div class="fixed bottom-4 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full bg-register-800 px-4 py-2 text-xs font-bold text-white shadow-xl">
-      <Check size={15} /> Ready to use offline
-      <button class="ml-1 rounded-full p-0.5 hover:bg-white/15" aria-label="Dismiss" onclick={() => (dismissed = true)}><X size={14} /></button>
+    <div role="status" class="kb-hide fixed inset-x-4 bottom-[calc(var(--tab-bar-height)+var(--safe-bottom)+0.75rem)] z-50 mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-lg bg-inverse-surface py-1 pl-4 pr-2 text-inverse-on-surface shadow-[var(--shadow-e3)] md:bottom-6">
+      <Check size={18} class="shrink-0 text-inverse-primary" /><p class="type-body-medium min-w-0 flex-1">Ready to use offline</p>
+      <button type="button" class="state-layer grid size-10 place-items-center rounded-full" aria-label="Dismiss" onclick={() => (dismissed = true)}><X size={20} /></button>
     </div>
   {/if}
 </div>
@@ -114,17 +129,17 @@
   <form class="grid gap-4" onsubmit={authorizeInstall}>
     <a
       href="tel:+923007355768"
-      class="flex items-center gap-3 rounded-xl border border-register-100 bg-register-50 px-3.5 py-3 text-register-900 transition hover:border-register-200 hover:bg-register-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-register-600"
+      class="flex items-center gap-3 rounded-xl border border-primary bg-primary-container/40 px-3.5 py-3 text-on-primary-container transition hover:border-primary hover:bg-primary-container focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-white shadow-sm"><Phone size={17} weight="bold" /></span>
+      <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-surface-container-lowest shadow-sm"><Phone size={17} weight="bold" /></span>
       <span class="min-w-0 text-xs leading-5">
-        <span class="block font-semibold">Contact Iqbal Nasir to get the code</span>
-        <span class="block font-extrabold tracking-wide">+92 300 7355768</span>
+        <span class="block font-medium">Contact Iqbal Nasir to get the code</span>
+        <span class="block font-medium">+92 300 7355768</span>
       </span>
     </a>
 
     <label class="grid gap-1.5 text-left">
-      <span class="text-[11px] font-bold tracking-[0.01em] text-ink-800">Installation code</span>
+      <span class="text-[12px] font-medium text-on-surface">Installation code</span>
       <input
         bind:this={installCodeInput}
         bind:value={installCode}
@@ -137,12 +152,12 @@
         aria-describedby={installCodeError ? 'install-code-error' : undefined}
         placeholder="Enter 4-digit code"
         oninput={() => (installCodeError = '')}
-        class="min-h-12 w-full rounded-xl border border-paper-200 bg-paper-50/60 px-3.5 text-sm font-medium tracking-[0.25em] text-ink-950 outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-ink-600/50 focus:border-register-600 focus:bg-white focus:ring-4 focus:ring-register-100 sm:min-h-11"
+        class="min-h-12 w-full rounded-xl border border-outline-variant bg-surface-container-low px-3.5 text-sm font-medium text-on-surface outline-none transition placeholder:font-normal placeholder:tracking-normal placeholder:text-on-surface-variant/50 focus:border-primary focus:bg-surface-container-lowest focus:ring-4 focus:ring-primary/20 sm:min-h-11"
       />
     </label>
 
     {#if installCodeError}
-      <p id="install-code-error" role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">{installCodeError}</p>
+      <p id="install-code-error" role="alert" class="rounded-2xl bg-error-container px-4 py-3 text-[13px] font-medium text-on-error-container">{installCodeError}</p>
     {/if}
 
     <Button type="submit" class="w-full"><Download size={16} weight="bold" /> Continue to install</Button>

@@ -48,8 +48,8 @@ export default defineConfig({
         short_name: "Attendance",
         description:
           "Offline students attendance and fee register for schools.",
-        theme_color: "#166534",
-        background_color: "#fafafa",
+        theme_color: "#f2f3f5",
+        background_color: "#f2f3f5",
         display: "standalone",
         orientation: "any",
         start_url: "./",

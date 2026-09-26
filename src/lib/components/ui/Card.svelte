@@ -10,6 +10,7 @@
   } = $props()
 </script>
 
-<section class={`rounded-2xl border border-paper-200/90 bg-white shadow-soft ${className}`}>
+<!-- Material 3 card on the surface-container background. -->
+<section class={`rounded-2xl bg-surface-container-lowest ${className}`}>
   {@render children()}
 </section>

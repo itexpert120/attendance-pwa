@@ -1,10 +1,8 @@
 <script lang="ts">
   import ImageSquare from 'phosphor-svelte/lib/ImageSquare'
-  import Trash from 'phosphor-svelte/lib/Trash'
   import Upload from 'phosphor-svelte/lib/UploadSimple'
   import { resizeImageFile } from '../image'
   import Button from './ui/Button.svelte'
-  import SchoolMark from './SchoolMark.svelte'
 
   let {
     value = $bindable(''),
@@ -32,23 +30,20 @@
   }
 </script>
 
-<div class="grid gap-1.5 text-left">
-  <span class="text-[11px] font-bold tracking-[0.01em] text-ink-800">School logo</span>
-  <div class="flex items-center gap-3 rounded-xl border border-paper-200 bg-paper-50/60 p-3">
-    {#if value}
-      <SchoolMark logoDataUrl={value} alt="Selected school logo" />
-    {:else}
-      <div class="grid size-12 shrink-0 place-items-center rounded-xl border border-dashed border-paper-200 bg-white text-ink-600"><ImageSquare size={22} /></div>
-    {/if}
-    <div class="min-w-0 flex-1">
-      <p class="text-xs font-bold text-ink-950">{value ? 'Custom logo selected' : 'Use your school crest'}</p>
-      <p class="mt-0.5 text-[10px] leading-4 text-ink-600">PNG, JPG, or WebP. It is resized and stored only on this device.</p>
+<div class="flex items-center gap-4">
+  {#if value}
+    <img src={value} alt="Selected school logo" class="size-16 shrink-0 rounded-full bg-surface-container-lowest object-contain ring-1 ring-outline-variant" />
+  {:else}
+    <div class="grid size-16 shrink-0 place-items-center rounded-full bg-secondary-container text-on-secondary-container"><ImageSquare size={28} /></div>
+  {/if}
+  <div class="min-w-0 flex-1">
+    <p class="type-title-small text-on-surface">School logo</p>
+    <p class="type-body-small text-on-surface-variant">Printed on reports. Stored only on this device.</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      <Button variant="secondary" size="sm" disabled={processing} onclick={() => input.click()}><Upload size={18} /> {value ? 'Change' : 'Choose'}</Button>
+      {#if value}<Button variant="ghost" size="sm" onclick={() => (value = '')}>Remove</Button>{/if}
     </div>
-    <div class="flex shrink-0 gap-1">
-      {#if value}<Button variant="ghost" size="icon" title="Remove school logo" onclick={() => (value = '')}><Trash size={17} /></Button>{/if}
-      <Button variant="secondary" size="icon" title={value ? 'Change school logo' : 'Choose school logo'} disabled={processing} onclick={() => input.click()}><Upload size={17} /></Button>
-    </div>
-    <input bind:this={input} class="hidden" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onchange={chooseLogo} />
   </div>
-  {#if error}<span class="text-[11px] font-semibold text-red-700">{error}</span>{/if}
+  <input bind:this={input} class="hidden" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" onchange={chooseLogo} />
 </div>
+{#if error}<p class="type-body-small -mt-2 text-error">{error}</p>{/if}

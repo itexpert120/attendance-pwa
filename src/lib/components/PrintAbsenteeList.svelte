@@ -33,9 +33,9 @@
     title="Absentee list"
     subtitle={`Class ${group?.className} · Section ${group?.section} · ${report.label}`}
   >
-    <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-center">
-      <p class="print-title text-xl text-red-900">{absentees.length}</p>
-      <p class="print-stat-label text-red-800">Absent students</p>
+    <div class="rounded-xl bg-[#fee2e2] px-4 py-3 text-center">
+      <p class="print-title text-xl text-[#7f1d1d]!">{absentees.length}</p>
+      <p class="print-stat-label text-[#7f1d1d]!">Absent students</p>
     </div>
   </PrintHeader>
 
@@ -61,7 +61,7 @@
                   class="mx-auto size-10 rounded object-cover"
                 />
               {:else}
-                <span class="text-register-700/70">—</span>
+                <span class="text-[#a1a1aa]">—</span>
               {/if}
             </td>
             <td class="font-bold">{student.enrollment.rollNumber}</td>

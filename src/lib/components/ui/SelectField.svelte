@@ -1,4 +1,6 @@
 <script lang="ts">
+  import CaretDown from 'phosphor-svelte/lib/CaretDown'
+
   let {
     label,
     value = $bindable(),
@@ -14,15 +16,18 @@
   } = $props()
 </script>
 
-<label class={`grid gap-1.5 text-left ${className}`}>
-  <span class="text-[11px] font-bold tracking-[0.01em] text-ink-800">{label}</span>
-  <select
-    bind:value
-    {disabled}
-    class="min-h-12 w-full rounded-xl border border-paper-200 bg-paper-50/60 px-3.5 text-sm font-medium text-ink-950 outline-none transition focus:border-register-600 focus:bg-white focus:ring-4 focus:ring-register-100 disabled:bg-paper-100 sm:min-h-11"
-  >
-    {#each options as option (option.value)}
-      <option value={option.value}>{option.label}</option>
-    {/each}
-  </select>
+<label class={`group grid min-w-0 gap-1 text-left ${className}`}>
+  <span class="relative block min-w-0 rounded-xl border border-outline bg-surface-container-lowest transition-[border-color,box-shadow] duration-150 group-hover:border-on-surface-variant focus-within:border-primary! focus-within:shadow-[0_0_0_1px_var(--color-primary)] has-[:disabled]:opacity-40">
+    <span class="type-body-small pointer-events-none absolute left-4 top-2 font-medium text-on-surface-variant group-focus-within:text-primary">{label}</span>
+    <select
+      bind:value
+      {disabled}
+      class="type-body-large block w-full min-w-0 rounded-xl bg-transparent px-4 pb-2 pt-6 text-on-surface caret-primary outline-none placeholder:text-on-surface-variant/60 h-14 appearance-none truncate pr-11"
+    >
+      {#each options as option (option.value)}
+        <option value={option.value}>{option.label}</option>
+      {/each}
+    </select>
+    <CaretDown size={18} weight="fill" class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-on-surface-variant" />
+  </span>
 </label>

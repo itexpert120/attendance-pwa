@@ -3,11 +3,11 @@
 @import "@fontsource/inter/latin-500.css";
 @import "@fontsource/inter/latin-600.css";
 @import "@fontsource/inter/latin-700.css";
-@import "@fontsource/merriweather/latin-700.css";
 
 @theme {
-  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  /* Roboto on Android, the platform UI font elsewhere; Inter is the bundled fallback. */
+  --font-sans: Roboto, "Google Sans Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+  --font-display: Roboto, "Google Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
   --color-ink-950: #18181b;
   --color-ink-800: #3f3f46;
   --color-ink-600: #71717a;
@@ -23,161 +23,458 @@
   --color-register-900: #14532d;
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 14px rgb(0 0 0 / 0.04);
   --shadow-lifted: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.1);
+  --shadow-sheet: 0 -2px 6px rgb(0 0 0 / 0.06);
+
+  /*
+   * Material 3 color roles: neutral surfaces with the register green as the
+   * only accent, so content stays crisp and colour carries meaning.
+   */
+  --color-primary: #15803d;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #dcfce7;
+  --color-on-primary-container: #14532d;
+  --color-secondary: #4b5563;
+  --color-secondary-container: #e7f5ec;
+  --color-on-secondary-container: #14532d;
+  --color-tertiary: #0369a1;
+  --color-tertiary-container: #e0f2fe;
+  --color-on-tertiary-container: #0c4a6e;
+  --color-error: #dc2626;
+  --color-on-error: #ffffff;
+  --color-error-container: #fee2e2;
+  --color-on-error-container: #7f1d1d;
+  --color-warning-container: #fef3c7;
+  --color-on-warning-container: #78350f;
+  --color-surface: #fbfbfc;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f7f8f9;
+  --color-surface-container: #f2f3f5;
+  --color-surface-container-high: #eceef1;
+  --color-surface-container-highest: #e5e7eb;
+  --color-on-surface: #18181b;
+  --color-on-surface-variant: #52525b;
+  --color-outline: #a1a1aa;
+  --color-outline-variant: #e4e4e7;
+  --color-inverse-surface: #27272a;
+  --color-inverse-on-surface: #f4f4f5;
+  --color-inverse-primary: #86efac;
+  --color-scrim: #000000;
+
+  /* Kept as aliases for the older screens. */
+  --color-canvas: var(--color-surface-container);
+  --color-separator: var(--color-outline-variant);
+
+  /* Material 3 elevation. */
+  --shadow-e1: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px 1px rgb(0 0 0 / 0.15);
+  --shadow-e2: 0 1px 2px rgb(0 0 0 / 0.3), 0 2px 6px 2px rgb(0 0 0 / 0.15);
+  --shadow-e3: 0 1px 3px rgb(0 0 0 / 0.3), 0 4px 8px 3px rgb(0 0 0 / 0.15);
+  --shadow-fab: var(--shadow-e3);
+
+  /* Material 3 motion. */
+  --ease-ios: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --ease-emphasized-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
 }
 
+/*
+ * Dark theme. "auto" (the default) follows the device; Settings can force
+ * light or dark via html[data-theme]. Cards stay a step lighter than the page.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #4ade80;
+  --color-on-primary: #052e16;
+  --color-primary-container: #14532d;
+  --color-on-primary-container: #bbf7d0;
+  --color-secondary: #a1a1aa;
+  --color-secondary-container: #1e3a2b;
+  --color-on-secondary-container: #c6f0d4;
+  --color-tertiary: #7dd3fc;
+  --color-tertiary-container: #0c4a6e;
+  --color-on-tertiary-container: #e0f2fe;
+  --color-error: #f87171;
+  --color-on-error: #450a0a;
+  --color-error-container: #7f1d1d;
+  --color-on-error-container: #fee2e2;
+  --color-warning-container: #713f12;
+  --color-on-warning-container: #fef3c7;
+  --color-surface: #141416;
+  --color-surface-container-lowest: #1c1c1f;
+  --color-surface-container-low: #19191c;
+  --color-surface-container: #111113;
+  --color-surface-container-high: #26262a;
+  --color-surface-container-highest: #2f2f34;
+  --color-on-surface: #ececef;
+  --color-on-surface-variant: #a1a1aa;
+  --color-outline: #71717a;
+  --color-outline-variant: #303036;
+  --color-inverse-surface: #e4e4e7;
+  --color-inverse-on-surface: #18181b;
+  --color-inverse-primary: #15803d;
+  --shadow-e1: 0 1px 2px rgb(0 0 0 / 0.6), 0 1px 3px 1px rgb(0 0 0 / 0.3);
+  --shadow-e2: 0 1px 2px rgb(0 0 0 / 0.6), 0 2px 6px 2px rgb(0 0 0 / 0.3);
+  --shadow-e3: 0 1px 3px rgb(0 0 0 / 0.6), 0 4px 8px 3px rgb(0 0 0 / 0.3);
+}
+
+/* Material 3 type scale. */
+@utility type-display-small { font-size: 36px; line-height: 44px; font-weight: 400; letter-spacing: 0; }
+@utility type-headline-medium { font-size: 28px; line-height: 36px; font-weight: 400; letter-spacing: 0; }
+@utility type-headline-small { font-size: 24px; line-height: 32px; font-weight: 400; letter-spacing: 0; }
+@utility type-title-large { font-size: 22px; line-height: 28px; font-weight: 400; letter-spacing: 0; }
+@utility type-title-medium { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; }
+@utility type-title-small { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+@utility type-body-large { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: 0.5px; }
+@utility type-body-medium { font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: 0.25px; }
+@utility type-body-small { font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: 0.4px; }
+@utility type-label-large { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+@utility type-label-medium { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; }
+@utility type-label-small { font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; }
+
+/*
+ * Material state layer: a currentColor overlay at 8% on hover and 10% on
+ * press/focus, plus the ripple wave added by lib/ripple.ts.
+ */
+@utility state-layer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: currentColor;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms linear;
+  }
+  @media (hover: hover) {
+    &:hover:not(:disabled)::after { opacity: 0.08; }
+  }
+  &:focus-visible::after,
+  &:active:not(:disabled)::after { opacity: 0.1; }
+}
+
+.ripple-wave {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.12;
+  pointer-events: none;
+  transform: scale(0);
+  animation: ripple-grow 450ms var(--ease-emphasized-decelerate) forwards;
+}
+
+.ripple-wave[data-release] {
+  animation:
+    ripple-grow 450ms var(--ease-emphasized-decelerate) forwards,
+    ripple-fade 300ms linear 150ms forwards;
+}
+
+@keyframes ripple-grow { to { transform: scale(1); } }
+@keyframes ripple-fade { to { opacity: 0; } }
+
+/* Native app feel: no tap flashes, no rubber-band scroll of the whole page,
+   no accidental text selection on controls, and safe-area aware chrome. */
+:root {
+  --tab-bar-height: 5rem;
+  --kb: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+/*
+ * Phone widths scroll without a visible scrollbar, as native apps do, so screens
+ * of different lengths never shift sideways. Wider layouts keep a stable gutter.
+ */
+@media (max-width: 767px) {
+  html {
+    scrollbar-width: none;
+  }
+
+  html::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+html,
+body {
+  background: var(--color-surface-container);
+  color: var(--color-on-surface);
+  overscroll-behavior-y: none;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-sans);
+}
+
+button,
+[role="button"],
+a,
+label,
+summary,
+nav {
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+[contenteditable] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+img {
+  -webkit-user-drag: none;
+}
+
+@media (max-width: 639px) {
+  /* 16px text stops iOS Safari from zooming the page when a field is focused. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.pressable {
+  transition:
+    background-color 150ms linear,
+    box-shadow 150ms linear,
+    opacity 150ms linear;
+}
+
+.pb-tabbar {
+  padding-bottom: calc(var(--tab-bar-height) + var(--safe-bottom) + 6rem + var(--kb));
+}
+
+.pb-screen {
+  /* --kb keeps the last fields reachable above an overlaid (iOS) keyboard. */
+  padding-bottom: calc(var(--safe-bottom) + 2.5rem + var(--kb));
+}
+
+@media (min-width: 768px) {
+  .pb-tabbar {
+    padding-bottom: calc(6rem + var(--kb));
+  }
+}
+
+/* Software keyboard up (see lib/keyboard.ts): floating chrome would cover it. */
+@media (max-width: 767px) {
+  html[data-keyboard] .kb-hide {
+    display: none;
+  }
+}
+
+/*
+ * Printed reports, in the same Material language as the app: a tonal header
+ * banner, rounded containers, tonal stat tiles, and tables with a soft header
+ * and hairline rows. Colours are fixed here (not theme tokens) so a PDF looks
+ * the same whether the app is in light or dark mode.
+ */
 .print-doc {
-  color: #14532d;
+  /* Pin light roles for any app components rendered inside a report. */
+  --color-primary: #15803d;
+  --color-on-primary: #ffffff;
+  --color-surface-container-lowest: #ffffff;
+  --print-ink: #18181b;
+  --print-muted: #52525b;
+  --print-line: #e4e4e7;
+  --print-fill: #f4f4f5;
+  --print-accent: #15803d;
+  --print-accent-soft: #dcfce7;
+  --print-accent-ink: #14532d;
+  color: var(--print-ink);
   background: #ffffff;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 11px;
   font-weight: 400;
-  line-height: 1.6;
+  line-height: 1.55;
+}
+
+.print-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--print-accent-soft);
+  color: var(--print-accent-ink);
 }
 
 .print-eyebrow {
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #15803d;
+  letter-spacing: 0.02em;
+  color: var(--print-accent);
 }
 
 .print-title {
-  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
-  font-size: 22px;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 20px;
   font-weight: 700;
-  line-height: 1.25;
-  letter-spacing: -0.02em;
-  color: #14532d;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--print-accent-ink);
 }
 
 .print-subtitle {
   font-size: 10px;
   font-weight: 500;
   line-height: 1.45;
-  color: #4d7c5f;
+  color: var(--print-accent-ink);
+  opacity: 0.8;
 }
 
 .print-section-title {
-  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
-  font-size: 13px;
-  font-weight: 700;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
   line-height: 1.25;
-  color: #14532d;
+  color: var(--print-accent);
 }
 
 .print-kv {
   display: grid;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #ffffff;
+  gap: 6px;
 }
 
 .print-kv > div {
-  padding: 10px 12px;
-  border-right: 1px solid #bbf7d0;
-}
-
-.print-kv > div:last-child {
-  border-right: 0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--print-fill);
 }
 
 .print-kv dt {
   font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #4d7c5f;
+  font-weight: 500;
+  color: var(--print-muted);
 }
 
 .print-kv dd {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 11px;
-  font-weight: 700;
-  color: #14532d;
+  font-weight: 600;
+  color: var(--print-ink);
 }
 
 .print-stats {
   display: grid;
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  overflow: hidden;
-  background: #f0fdf4;
-  text-align: center;
+  gap: 6px;
+  text-align: left;
 }
 
 .print-stats > div {
-  padding: 10px 8px;
-  border-right: 1px solid #bbf7d0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--print-fill);
 }
 
-.print-stats > div:last-child {
-  border-right: 0;
+.print-stats > div:first-child {
+  background: var(--print-accent-soft);
+  color: var(--print-accent-ink);
 }
 
 .print-stat-value {
-  font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
-  font-size: 16px;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-size: 18px;
   font-weight: 700;
-  color: #14532d;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
 .print-stat-label {
   margin-top: 2px;
   font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #4d7c5f;
+  font-weight: 500;
+  color: var(--print-muted);
 }
 
+/* Tables sit in a rounded outlined container with a soft header row. */
 .print-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   text-align: left;
+  border: 1px solid var(--print-line);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .print-table th {
-  background: #15803d;
-  color: #ffffff;
+  background: var(--print-fill);
+  color: var(--print-muted);
   font-size: 8px;
   font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid #166534;
   padding: 8px 10px;
+  border-bottom: 1px solid var(--print-line);
 }
 
 .print-table td {
-  border: 1px solid #bbf7d0;
-  padding: 8px 10px;
-  color: #14532d;
+  padding: 7px 10px;
+  color: var(--print-ink);
   vertical-align: top;
+  border-bottom: 1px solid var(--print-line);
 }
 
-.print-table tbody tr:nth-child(even) {
-  background: #f0fdf4;
+.print-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .print-table tfoot td,
 .print-table tfoot th {
-  background: #f0fdf4;
-  color: #14532d;
+  background: var(--print-accent-soft);
+  color: var(--print-accent-ink);
   font-weight: 700;
-  border: 1px solid #bbf7d0;
+  border-top: 1px solid var(--print-line);
+  border-bottom: 0;
 }
 
+/* The monthly register is a dense grid: keep column rules so it stays readable. */
 .print-table-dense th,
 .print-table-dense td {
   padding: 3px 4px;
   font-size: 7px;
+  border-right: 1px solid var(--print-line);
+}
+
+.print-table-dense th:last-child,
+.print-table-dense td:last-child {
+  border-right: 0;
+}
+
+.print-table th.print-holiday-head {
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .print-note {
-  border: 1px solid #bbf7d0;
-  border-radius: 6px;
-  background: #f0fdf4;
+  border-radius: 12px;
+  background: var(--print-fill);
   padding: 12px 14px;
 }
 
@@ -187,32 +484,30 @@
 }
 
 .print-sign-line {
-  border-bottom: 1px solid #14532d;
+  border-bottom: 1px solid var(--print-ink);
   height: 36px;
 }
 
 .print-sign-label {
   margin-top: 6px;
   font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #4d7c5f;
+  font-weight: 500;
+  color: var(--print-muted);
 }
 
 .print-sign-name {
   margin-top: 2px;
   font-size: 10px;
   font-weight: 600;
-  color: #14532d;
+  color: var(--print-ink);
 }
 
 .print-footer {
   margin-top: 18px;
   padding-top: 8px;
-  border-top: 1px solid #bbf7d0;
+  border-top: 1px solid var(--print-line);
   font-size: 8px;
-  color: #4d7c5f;
+  color: var(--print-muted);
 }
 
 @media print {
@@ -222,6 +517,15 @@
   }
 
   .print-doc :where(.print-title, .print-section-title, .print-stat-value, h1, h2, h3) {
-    font-family: Merriweather, ui-serif, Georgia, "Times New Roman", serif;
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@media print {
+  /* Reports always print on white, whatever the screen theme. */
+  html,
+  body {
+    background: #ffffff !important;
+    color-scheme: light;
   }
 }

@@ -1,13 +1,10 @@
 <script lang="ts">
   import ArrowDown from 'phosphor-svelte/lib/ArrowDown'
-  import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft'
   import ArrowUp from 'phosphor-svelte/lib/ArrowUp'
   import ArrowCounterClockwise from 'phosphor-svelte/lib/ArrowCounterClockwise'
   import Archive from 'phosphor-svelte/lib/Archive'
   import BookOpen from 'phosphor-svelte/lib/BookOpen'
-  import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank'
   import Camera from 'phosphor-svelte/lib/Camera'
-  import CaretRight from 'phosphor-svelte/lib/CaretRight'
   import Check from 'phosphor-svelte/lib/Check'
   import FloppyDisk from 'phosphor-svelte/lib/FloppyDisk'
   import NotePencil from 'phosphor-svelte/lib/NotePencil'
@@ -23,21 +20,31 @@
   import type { Subject } from '../types'
   import HomeworkPhotoPicker from './HomeworkPhotoPicker.svelte'
   import PrintHomeworkReport from './PrintHomeworkReport.svelte'
-  import SchoolMark from './SchoolMark.svelte'
-  import Badge from './ui/Badge.svelte'
+  import { goBack, navigate, paths } from '../navigation'
+  import BarButton from './ui/BarButton.svelte'
   import Button from './ui/Button.svelte'
   import Card from './ui/Card.svelte'
+  import EmptyState from './ui/EmptyState.svelte'
+  import Fab from './ui/Fab.svelte'
+  import ListGroup from './ui/ListGroup.svelte'
+  import ListRow from './ui/ListRow.svelte'
   import Modal from './ui/Modal.svelte'
+  import Screen from './ui/Screen.svelte'
+  import Segmented from './ui/Segmented.svelte'
   import SelectField from './ui/SelectField.svelte'
+  import SubjectForm from './SubjectForm.svelte'
   import TextareaField from './ui/TextareaField.svelte'
   import TextField from './ui/TextField.svelte'
 
   let {
     state: appState,
-    onback,
+    editor,
+    report: editingReport,
   }: {
     state: AttendanceState
-    onback: () => void
+    /** Set on the /homework/new and /homework/:id/edit routes. */
+    editor?: 'new' | 'edit'
+    report?: DailyHomeworkReport
   } = $props()
 
   type DraftItem = { key: string; subjectId: string; details: string }
@@ -51,7 +58,6 @@
   const defaultParentNote =
     'Please check that the homework has been completed and sign the diary.'
 
-  let editorOpen = $state(false)
   let editingId = $state<string | null>(null)
   let reportClassGroupId = $state('')
   let reportDate = $state(today)
@@ -71,6 +77,8 @@
   let editingSubjectId = $state<string | null>(null)
   let editingSubjectName = $state('')
   let subjectError = $state('')
+  let actionReport = $state<DailyHomeworkReport | null>(null)
+  let subjectFormOpen = $state(false)
 
   let activeSubjects = $derived(appState.subjects.filter((subject) => !subject.archivedAt))
   let classOptions = $derived(
@@ -125,7 +133,6 @@
       ? [{ key: nextItemKey(), subjectId: activeSubjects[0].id, details: '' }]
       : []
     formError = ''
-    editorOpen = true
   }
 
   function beginEdit(report: DailyHomeworkReport) {
@@ -140,13 +147,22 @@
       .sort((a, b) => a.order - b.order)
       .map((item) => ({ ...item, key: nextItemKey() }))
     formError = ''
-    editorOpen = true
   }
 
-  function cancelEdit() {
-    editorOpen = false
-    editingId = null
-    formError = ''
+  // The editor routes start from a blank or saved report once, on open.
+  let initializedEditor = false
+  $effect(() => {
+    if (initializedEditor || !editor) return
+    initializedEditor = true
+    if (editor === 'edit' && editingReport) beginEdit(editingReport)
+    else beginCreate()
+  })
+
+  /** Runs a report action after closing the action sheet (which clears `actionReport`). */
+  function act(action: (report: DailyHomeworkReport) => unknown) {
+    const report = actionReport
+    actionReport = null
+    if (report) void action(report)
   }
 
   function addItem() {
@@ -257,9 +273,8 @@
       const saved = editingId
         ? await appState.updateDailyHomeworkReport(editingId, input)
         : await appState.createDailyHomeworkReport(input)
-      editorOpen = false
-      editingId = null
       if (printAfter) await openPrint(saved)
+      goBack(paths.homework())
     } catch (caught) {
       formError =
         caught instanceof Error ? caught.message : 'Could not save this Daily Homework Report.'
@@ -310,347 +325,145 @@
   }
 </script>
 
-<main class="min-h-svh bg-paper-100 text-ink-950 print:hidden">
-  <header class="border-b border-paper-200 bg-white/95 backdrop-blur">
-    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5 sm:px-6">
-      <Button variant="ghost" size="icon" title="Back to Dashboard" onclick={onback}>
-        <ArrowLeft size={19} weight="bold" />
-      </Button>
-      <div class="hidden sm:block">
-        <SchoolMark
-          compact
-          logoDataUrl={appState.settings?.logoDataUrl}
-          alt={`${appState.settings?.schoolName ?? 'School'} logo`}
-        />
-      </div>
-      <div class="min-w-0 flex-1">
-        <h1 class="font-display text-xl font-semibold tracking-[-0.025em] sm:text-2xl">
-          Daily Homework
-        </h1>
-        <p class="mt-0.5 hidden text-[10px] font-bold uppercase tracking-[0.11em] text-ink-600 sm:block">
-          Class diaries and PDF reports
-        </p>
-      </div>
-      {#if !editorOpen}
-        <div class="hidden sm:block">
-          <Button onclick={beginCreate}><Plus size={17} weight="bold" /> New report</Button>
-        </div>
-      {/if}
-    </div>
-  </header>
-
-  <div class="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-    {#if editorOpen}
-      <form onsubmit={submitReport}>
-        <section class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-register-700">
-              {editingId ? 'Edit saved diary' : 'Create class diary'}
-            </p>
-            <h2 class="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-              {editingId ? 'Update homework report' : 'New homework report'}
-            </h2>
-            <p class="mt-1 text-xs font-medium text-ink-600">
-              Type Subject assignments, or attach one photo of the written diary.
-            </p>
-          </div>
-          <Button type="button" variant="ghost" onclick={cancelEdit}>Cancel</Button>
-        </section>
-
-        <Card class="mt-5 p-4 sm:p-5">
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <SelectField
-              label="Class & section"
-              bind:value={reportClassGroupId}
-              options={classOptions}
-            />
-            <TextField label="Report date" bind:value={reportDate} type="date" required />
-            <TextField
-              label="Class incharge"
-              bind:value={inchargeName}
-              placeholder="Name shown on the report"
-              required
-            />
-          </div>
-        </Card>
-
-        <section class="mt-7">
-          <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <p class="text-[10px] font-extrabold uppercase tracking-[0.1em] text-register-700">
-                Diary / Homework
-              </p>
-              <h2 class="mt-1 font-display text-xl font-semibold">
-                {entryMode === 'photo' ? 'Photographed diary' : 'Subject assignments'}
-              </h2>
-            </div>
-            <div class="grid grid-cols-2 gap-2 sm:flex">
-              {#if entryMode === 'typed'}
-                <Button type="button" variant="soft" size="sm" onclick={() => { subjectError = ''; subjectsOpen = true }}>
-                  <BookOpen size={15} weight="bold" /> Manage Subjects
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  disabled={!firstUnusedSubjectId()}
-                  onclick={addItem}
-                >
-                  <Plus size={15} weight="bold" /> Add homework row
-                </Button>
-              {/if}
-            </div>
-          </div>
-
-          <div class="mb-4 grid grid-cols-2 gap-2 rounded-2xl border border-paper-200 bg-white p-1">
-            <Button
-              type="button"
-              variant={entryMode === 'typed' ? 'primary' : 'ghost'}
-              size="sm"
-              onclick={() => setEntryMode('typed')}
-            >
-              <Notebook size={15} weight="bold" /> Type subjects
-            </Button>
-            <Button
-              type="button"
-              variant={entryMode === 'photo' ? 'primary' : 'ghost'}
-              size="sm"
-              onclick={() => setEntryMode('photo')}
-            >
-              <Camera size={15} weight="bold" /> Attach photo
-            </Button>
-          </div>
-
-          {#if entryMode === 'photo'}
-            <Card class="p-4 sm:p-5">
-              <HomeworkPhotoPicker bind:value={draftPhoto} />
-            </Card>
-          {:else if draftItems.length}
-            <Card class="overflow-hidden">
-              <div class="grid grid-cols-[8rem_minmax(0,1fr)] bg-register-800 text-white sm:grid-cols-[15rem_minmax(0,1fr)_8rem]">
-                <div class="border-r border-white/20 px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.1em] sm:px-4">Subject</div>
-                <div class="px-3 py-2.5 text-[10px] font-extrabold uppercase tracking-[0.1em] sm:px-4">Homework / Note</div>
-                <div class="hidden border-l border-white/20 px-3 py-2.5 text-center text-[10px] font-extrabold uppercase tracking-[0.1em] sm:block">Order</div>
-              </div>
-              <div class="divide-y divide-paper-200">
-                {#each draftItems as item, index (item.key)}
-                  <div class="grid grid-cols-[8rem_minmax(0,1fr)] bg-white sm:grid-cols-[15rem_minmax(0,1fr)_8rem]">
-                    <div class="border-r border-paper-200 bg-register-50/60 p-2.5 sm:p-3.5">
-                      <div class="mb-2 flex items-center gap-2">
-                        <span class="grid size-6 shrink-0 place-items-center rounded-lg bg-register-800 text-[10px] font-extrabold text-white">{index + 1}</span>
-                        <span class="truncate text-[9px] font-extrabold uppercase tracking-wide text-register-800">Subject</span>
-                      </div>
-                      <select
-                        bind:value={item.subjectId}
-                        aria-label={`Subject for Homework Item ${index + 1}`}
-                        required
-                        class="min-h-11 w-full rounded-xl border border-paper-200 bg-white px-2 text-xs font-bold text-ink-950 outline-none transition focus:border-register-600 focus:ring-4 focus:ring-register-100"
-                      >
-                        {#each subjectOptionsFor(item) as option (option.value)}
-                          <option value={option.value}>{option.label}</option>
-                        {/each}
-                      </select>
-                    </div>
-                    <div class="p-2.5 sm:p-3.5">
-                      <textarea
-                        bind:value={item.details}
-                        aria-label={`Homework details for ${subjectName(item.subjectId)}`}
-                        rows={4}
-                        maxlength={1200}
-                        placeholder="What should Students complete?"
-                        required
-                        class="min-h-28 w-full resize-y rounded-xl border border-paper-200 bg-paper-50/60 px-3 py-2.5 text-sm font-medium leading-5 text-ink-950 outline-none transition placeholder:text-ink-600/50 focus:border-register-600 focus:bg-white focus:ring-4 focus:ring-register-100"
-                      ></textarea>
-                      <div class="mt-1.5 flex items-center justify-between gap-2 text-[9px] font-semibold text-ink-600">
-                        <span>Use a new line for each instruction.</span>
-                        <span class="shrink-0 tabular-nums">{item.details.length}/1200</span>
-                      </div>
-                    </div>
-                    <div class="hidden flex-col items-center justify-center gap-1 border-l border-paper-200 bg-paper-50 p-2 sm:flex">
-                      <Button type="button" variant="ghost" size="icon" title="Move Subject up" disabled={index === 0} onclick={() => moveItem(index, -1)}><ArrowUp size={16} weight="bold" /></Button>
-                      <Button type="button" variant="ghost" size="icon" title="Move Subject down" disabled={index === draftItems.length - 1} onclick={() => moveItem(index, 1)}><ArrowDown size={16} weight="bold" /></Button>
-                      <Button type="button" variant="ghost" size="icon" title="Remove Subject" onclick={() => removeItem(index)}><Trash size={16} /></Button>
-                    </div>
-                    <div class="col-span-2 flex items-center justify-end gap-1 border-t border-paper-200 bg-paper-50 px-2 py-1.5 sm:hidden">
-                      <Button type="button" variant="ghost" size="sm" title="Move Subject up" disabled={index === 0} onclick={() => moveItem(index, -1)}><ArrowUp size={15} weight="bold" /> Up</Button>
-                      <Button type="button" variant="ghost" size="sm" title="Move Subject down" disabled={index === draftItems.length - 1} onclick={() => moveItem(index, 1)}><ArrowDown size={15} weight="bold" /> Down</Button>
-                      <Button type="button" variant="ghost" size="sm" title="Remove Subject" onclick={() => removeItem(index)}><Trash size={15} /> Remove</Button>
-                    </div>
-                  </div>
-                {/each}
-              </div>
-            </Card>
-          {:else}
-            <Card class="grid min-h-44 place-items-center border-dashed p-6 text-center">
-              <div>
-                <BookOpen size={24} class="mx-auto text-ink-600" />
-                <h3 class="mt-3 font-bold">Add a Subject assignment</h3>
-                <p class="mt-1 text-xs font-medium text-ink-600">
-                  Active Subjects are shared with the Tests feature.
-                </p>
-                <Button
-                  type="button"
-                  class="mt-4"
-                  disabled={!activeSubjects.length}
-                  onclick={addItem}
-                ><Plus size={16} /> Add Subject</Button>
-              </div>
-            </Card>
-          {/if}
-        </section>
-
-        <Card class="mt-5 p-4 sm:p-5">
-          <TextareaField
-            label="Note for parents"
-            bind:value={parentNote}
-            rows={4}
-            maxlength={600}
-            placeholder="Message printed below the homework."
-            help="This note appears at the end of the PDF."
-            required
-          />
-        </Card>
-
-        {#if formError}
-          <p role="alert" class="mt-4 rounded-xl bg-red-50 px-4 py-3 text-xs font-semibold text-red-800">
-            {formError}
-          </p>
-        {/if}
-
-        <div class="mt-5 grid gap-2 sm:flex sm:justify-end">
-          <Button type="submit" variant="secondary" disabled={saving}>
-            <FloppyDisk size={17} weight="bold" /> {saving ? 'Saving…' : 'Save report'}
-          </Button>
-          <Button
-            type="button"
-            disabled={saving}
-            onclick={() => void saveReport(true)}
-          >
-            <Printer size={17} weight="bold" /> Save & create PDF
-          </Button>
-        </div>
-      </form>
-    {:else}
-      <section class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-register-700">
-            School-to-home record
-          </p>
-          <h2 class="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl">
-            Daily homework reports
-          </h2>
-          <p class="mt-1 text-xs font-medium text-ink-600">
-            Save one diary per Class Group and date, ready to print or save as PDF.
-          </p>
-        </div>
-        <Button class="w-full sm:hidden" onclick={beginCreate}>
-          <Plus size={17} weight="bold" /> New report
-        </Button>
-      </section>
-
-      <Card class="mt-5 p-4">
-        <div class="grid gap-3 sm:grid-cols-2">
-          <SelectField
-            label="Class Group"
-            bind:value={classFilter}
-            options={filterClassOptions}
-          />
-          <TextField label="Report date" bind:value={dateFilter} type="date" />
-        </div>
+{#if editor}
+<Screen title={editingId ? 'Edit homework' : 'New homework'} subtitle="Daily diary for parents" back={paths.homework()} backLabel="Cancel" width="lg">
+  {#snippet actions()}
+    <BarButton label="Manage Subjects" onclick={() => { subjectError = ''; subjectsOpen = true }}><BookOpen /></BarButton>
+  {/snippet}
+    <form onsubmit={submitReport} class="space-y-6">
+      <Card class="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3">
+        <SelectField label="Class & section" bind:value={reportClassGroupId} options={classOptions} />
+        <TextField label="Report date" bind:value={reportDate} type="date" required />
+        <TextField label="Class incharge" bind:value={inchargeName} placeholder="Name shown on the report" required />
       </Card>
 
-      <section class="mt-7">
-        <div class="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 class="font-display text-xl font-semibold">
-              {filteredReports.length} saved report{filteredReports.length === 1 ? '' : 's'}
-            </h2>
-            <p class="mt-0.5 text-[11px] font-medium text-ink-600">Newest date first</p>
-          </div>
-          <Notebook size={23} weight="bold" class="text-register-700" />
-        </div>
-
-        <div class="grid gap-3 lg:grid-cols-2">
-          {#each filteredReports as report (report.id)}
-            <Card class="overflow-hidden">
-              <div class="flex items-start gap-4 p-4">
-                <div class="grid size-14 shrink-0 place-items-center overflow-hidden rounded-2xl border border-register-100 bg-register-50 text-register-800">
-                  {#if report.photoDataUrl}
-                    <img src={report.photoDataUrl} alt="" class="size-full object-cover" />
-                  {:else}
-                    <Notebook size={27} weight="duotone" />
-                  {/if}
-                </div>
-                <div class="min-w-0 flex-1">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <h3 class="font-display text-xl font-semibold">Class {groupLabel(report)}</h3>
-                    {#if report.photoDataUrl}
-                      <Badge tone="success">Photo diary</Badge>
-                    {:else}
-                      <Badge tone="info">{report.items.length} Subject{report.items.length === 1 ? '' : 's'}</Badge>
-                    {/if}
-                  </div>
-                  <p class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-ink-600">
-                    <span class="inline-flex items-center gap-1"><CalendarBlank size={13} weight="bold" /> {dateLabel(report.date)}</span>
-                    <span>Incharge: {report.inchargeName}</span>
-                  </p>
-                  <p class="mt-2 line-clamp-2 text-xs font-medium leading-5 text-ink-800">
-                    {#if report.photoDataUrl}
-                      Photographed diary for parents to review.
-                    {:else}
-                      {report.items.map((item) => subjectName(item.subjectId)).join(' · ')}
-                    {/if}
-                  </p>
-                </div>
-                <CaretRight size={19} weight="bold" class="mt-4 hidden shrink-0 text-ink-600 sm:block" />
+      <section class="space-y-3">
+        <h2 class="type-title-small flex min-h-10 items-center px-4 text-primary">Homework</h2>
+        <Segmented label="Homework entry" bind:value={() => entryMode, setEntryMode} options={[{ value: 'typed' as const, label: 'Type subjects', icon: Notebook }, { value: 'photo' as const, label: 'Diary photo', icon: Camera }]} />
+        {#if entryMode === 'photo'}
+          <Card class="p-4"><HomeworkPhotoPicker bind:value={draftPhoto} /></Card>
+        {:else}
+          {#each draftItems as item, index (item.key)}
+            <Card class="p-4">
+              <div class="flex items-end gap-2">
+                <span class="type-title-medium mb-3 grid size-8 shrink-0 place-items-center rounded-full bg-secondary-container text-on-secondary-container">{index + 1}</span>
+                <SelectField class="min-w-0 flex-1" label="Subject" bind:value={item.subjectId} options={subjectOptionsFor(item)} />
               </div>
-              <div class="grid grid-cols-3 gap-1 border-t border-paper-200 bg-paper-50 p-2">
-                <Button variant="ghost" size="sm" onclick={() => beginEdit(report)}>
-                  <NotePencil size={15} weight="bold" /> Edit
-                </Button>
-                <Button variant="ghost" size="sm" onclick={() => void openPrint(report)}>
-                  <Printer size={15} weight="bold" /> PDF
-                </Button>
-                <Button variant="ghost" size="sm" onclick={() => void deleteReport(report)}>
-                  <Trash size={15} /> Delete
-                </Button>
+              <div class="mt-3">
+                <TextareaField label="Homework" bind:value={item.details} rows={3} maxlength={1200} placeholder="What should students complete? One instruction per line." required />
               </div>
-            </Card>
-          {:else}
-            <Card class="col-span-full grid min-h-60 place-items-center border-dashed p-6 text-center">
-              <div>
-                <div class="mx-auto grid size-12 place-items-center rounded-xl bg-paper-100 text-ink-600">
-                  <Notebook size={23} />
-                </div>
-                <h3 class="mt-4 font-bold">No homework reports match</h3>
-                <p class="mt-1 text-sm text-ink-600">Clear the filters or create today’s diary.</p>
-                <Button class="mt-4" onclick={beginCreate}><Plus size={16} /> New report</Button>
+              <div class="-mb-2 mt-1 flex items-center justify-end">
+                <BarButton label="Move up" disabled={index === 0} onclick={() => moveItem(index, -1)}><ArrowUp /></BarButton>
+                <BarButton label="Move down" disabled={index === draftItems.length - 1} onclick={() => moveItem(index, 1)}><ArrowDown /></BarButton>
+                <BarButton label="Remove Subject" onclick={() => removeItem(index)}><Trash /></BarButton>
               </div>
             </Card>
           {/each}
-        </div>
+          {#if activeSubjects.length}
+            <Button variant="outlined" class="w-full" disabled={!firstUnusedSubjectId()} onclick={addItem}><Plus size={18} /> {draftItems.length ? 'Add another Subject' : 'Add a Subject'}</Button>
+            {#if !firstUnusedSubjectId()}<p class="type-body-small px-4 text-on-surface-variant">Every active Subject is already on this diary. <button type="button" class="font-medium text-primary" onclick={() => (subjectFormOpen = true)}>Create a new Subject</button></p>{/if}
+          {:else}
+            <Card>
+              <EmptyState icon={BookOpen} title="No Subjects yet" text="Subjects are shared by Tests and homework across every class.">
+                <Button onclick={() => (subjectFormOpen = true)}><Plus size={18} /> New Subject</Button>
+              </EmptyState>
+            </Card>
+          {/if}
+        {/if}
       </section>
+
+      <Card class="p-4">
+        <TextareaField label="Note for parents" bind:value={parentNote} rows={3} maxlength={600} placeholder="Message printed below the homework." help="Printed at the end of the PDF." required />
+      </Card>
+
+      {#if formError}
+        <p role="alert" class="type-body-medium rounded-xl bg-error-container px-4 py-3 text-on-error-container">
+          {formError}
+        </p>
+      {/if}
+
+      <div class="kb-hide sticky bottom-0 z-20 -mx-4 grid grid-cols-2 gap-2 border-t border-outline-variant bg-surface-container-lowest px-4 pb-[calc(var(--safe-bottom)+0.75rem)] pt-3 sm:static sm:mx-0 sm:flex sm:justify-end sm:border-0 sm:bg-transparent sm:px-0">
+        <Button type="submit" variant="secondary" disabled={saving}>
+          <FloppyDisk size={18} /> {saving ? 'Saving…' : 'Save'}
+        </Button>
+        <Button type="button" disabled={saving} onclick={() => void saveReport(true)}>
+          <Printer size={18} /> Save & PDF
+        </Button>
+      </div>
+    </form>
+</Screen>
+{:else}
+<Screen title="Homework" subtitle="Class diaries and PDF reports">
+  {#snippet actions()}
+    <BarButton label="Manage Subjects" onclick={() => { subjectError = ''; subjectsOpen = true }}><BookOpen /></BarButton>
+  {/snippet}
+
+  <div class="space-y-6">
+    <div class="grid grid-cols-2 gap-2">
+      <SelectField label="Class Group" bind:value={classFilter} options={filterClassOptions} />
+      <TextField label="Date" bind:value={dateFilter} type="date" />
+    </div>
+
+    {#if filteredReports.length}
+      <ListGroup header={`${filteredReports.length} saved report${filteredReports.length === 1 ? '' : 's'}`} footer="Newest date first. Tap a report to edit, share as PDF or delete it.">
+        {#each filteredReports as report (report.id)}
+          <ListRow
+            label={`Class ${groupLabel(report)} · ${dateLabel(report.date)}`}
+            detail={report.photoDataUrl ? 'Photographed diary' : report.items.map((item) => subjectName(item.subjectId)).join(' · ')}
+            onclick={() => (actionReport = report)}
+          >
+            {#snippet leading()}
+              <span class="grid size-11 shrink-0 place-items-center overflow-hidden rounded-2xl bg-teal-100 text-teal-700">
+                {#if report.photoDataUrl}<img src={report.photoDataUrl} alt="" class="size-full object-cover" />{:else}<Notebook size={22} weight="duotone" />{/if}
+              </span>
+            {/snippet}
+          </ListRow>
+        {/each}
+      </ListGroup>
+    {:else}
+      <div class="rounded-2xl bg-surface-container-lowest">
+        <EmptyState icon={Notebook} title="No homework reports" text="Clear the filters or create today’s diary.">
+          <Button onclick={() => navigate(paths.homeworkNew())}><Plus size={17} weight="bold" /> New report</Button>
+        </EmptyState>
+      </div>
     {/if}
   </div>
-</main>
+</Screen>
+
+<Fab icon={Plus} text="New report" label="New homework report" onclick={() => navigate(paths.homeworkNew())} />
+{/if}
+
+<Modal open={actionReport !== null} title={actionReport ? `Class ${groupLabel(actionReport)}` : 'Homework report'} description={actionReport ? `${dateLabel(actionReport.date)} · Incharge: ${actionReport.inchargeName}` : undefined} size="sm">
+  {#if actionReport}
+    <ListGroup muted>
+      <ListRow icon={NotePencil} tone="blue" label="Edit report" onclick={() => act((report) => navigate(paths.homeworkEdit(report.id)))} />
+      <ListRow icon={Printer} tone="green" label="Create PDF" detail="Print or save to share with parents" onclick={() => act(openPrint)} />
+      <ListRow icon={Trash} tone="red" label="Delete report" destructive onclick={() => act(deleteReport)} />
+    </ListGroup>
+  {/if}
+</Modal>
+
+<SubjectForm state={appState} bind:open={subjectFormOpen} oncreated={(id) => {
+  if (entryMode === 'typed' && !draftItems.some((item) => item.subjectId === id)) draftItems = [...draftItems, { key: nextItemKey(), subjectId: id, details: '' }]
+}} />
 
 <Modal bind:open={subjectsOpen} title="Manage Subjects" description="Add a Subject and it becomes a new homework row immediately. Renames update every Test and report." size="lg">
   <form class="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end" onsubmit={(event) => { event.preventDefault(); void createSubject() }}>
     <TextField label="New Subject" bind:value={newSubjectName} placeholder="e.g. Computer Science" required />
     <Button type="submit"><Plus size={16} weight="bold" /> Add & use</Button>
   </form>
-  {#if subjectError}<p role="alert" class="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">{subjectError}</p>{/if}
-  <div class="mt-5 max-h-[55svh] divide-y divide-paper-200 overflow-y-auto rounded-2xl border border-paper-200 bg-white">
+  {#if subjectError}<p role="alert" class="mt-3 rounded-2xl bg-error-container px-4 py-3 text-[13px] font-medium text-on-error-container">{subjectError}</p>{/if}
+  <div class="mt-5 max-h-[55svh] divide-y divide-outline-variant overflow-y-auto rounded-2xl border border-outline-variant bg-surface-container-lowest">
     {#each appState.subjects as subject (subject.id)}
       <div class="flex items-center gap-2 px-3 py-2.5 sm:px-4">
-        <div class={`grid size-9 shrink-0 place-items-center rounded-xl ${subject.archivedAt ? 'bg-paper-100 text-ink-600' : 'bg-register-50 text-register-800'}`}><BookOpen size={17} weight="bold" /></div>
+        <div class={`grid size-9 shrink-0 place-items-center rounded-xl ${subject.archivedAt ? 'bg-surface-container text-on-surface-variant' : 'bg-primary-container/40 text-on-primary-container'}`}><BookOpen size={17} weight="bold" /></div>
         {#if editingSubjectId === subject.id}
-          <input bind:value={editingSubjectName} aria-label={`Rename ${subject.name}`} onkeydown={renameSubjectOnEnter} class="min-h-10 min-w-0 flex-1 rounded-xl border border-register-600 bg-white px-3 text-sm font-bold outline-none ring-4 ring-register-100" />
+          <input bind:value={editingSubjectName} aria-label={`Rename ${subject.name}`} onkeydown={renameSubjectOnEnter} class="min-h-10 min-w-0 flex-1 rounded-xl border border-primary bg-surface-container-lowest px-3 text-sm font-medium outline-none ring-4 ring-primary/20" />
           <Button type="button" size="sm" onclick={() => void renameSubject()}><Check size={15} weight="bold" /> Save</Button>
         {:else}
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-bold">{subject.name}</p>
-            <p class="mt-0.5 text-[9px] font-semibold text-ink-600">{subject.archivedAt ? 'Archived' : 'Active'} · {appState.dailyHomeworkReports.filter((report) => report.items.some((item) => item.subjectId === subject.id)).length} homework report(s)</p>
+            <p class="truncate text-sm font-medium">{subject.name}</p>
+            <p class="mt-0.5 type-label-medium text-on-surface-variant">{subject.archivedAt ? 'Archived' : 'Active'} · {appState.dailyHomeworkReports.filter((report) => report.items.some((item) => item.subjectId === subject.id)).length} homework report(s)</p>
           </div>
           <Button type="button" variant="ghost" size="icon" title={`Rename ${subject.name}`} onclick={() => beginSubjectRename(subject)}><NotePencil size={15} /></Button>
           <Button
@@ -664,7 +477,7 @@
         {/if}
       </div>
     {:else}
-      <p class="px-4 py-10 text-center text-sm font-semibold text-ink-600">No Subjects yet. Add the first one above.</p>
+      <p class="px-4 py-10 text-center text-sm font-medium text-on-surface-variant">No Subjects yet. Add the first one above.</p>
     {/each}
   </div>
 </Modal>

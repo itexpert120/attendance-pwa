@@ -2,8 +2,8 @@
   import { Dialog } from 'bits-ui'
   import X from 'phosphor-svelte/lib/X'
   import type { Snippet } from 'svelte'
-  import { fade, fly } from 'svelte/transition'
-  import Button from './Button.svelte'
+  import { fade } from 'svelte/transition'
+  import { registerBack } from '../../navigation'
 
   let {
     open = $bindable(false),
@@ -22,14 +22,66 @@
   } = $props()
 
   const widths = {
-    sm: 'max-w-md',
-    md: 'max-w-xl',
-    lg: 'max-w-3xl',
-    xl: 'max-w-5xl',
+    sm: 'md:max-w-md',
+    md: 'md:max-w-xl',
+    lg: 'md:max-w-3xl',
+    xl: 'md:max-w-5xl',
   }
+
+  let dragY = $state(0)
+  let dragging = $state(false)
+  let startY = 0
+  let startTime = 0
+
+  // The device back button closes the sheet instead of leaving the screen.
+  $effect(() => {
+    if (!open) return
+    dragY = 0
+    return registerBack(() => (open = false))
+  })
+
+  // Slides by the sheet's own height so tall sheets leave the screen completely.
+  // Tablet dialogs fade and scale instead.
+  function sheet(node: HTMLElement, { duration, easing }: { duration: number; easing: (t: number) => number }) {
+    const phone = !window.matchMedia('(min-width: 768px)').matches
+    const from = dragY
+    return {
+      duration,
+      easing,
+      css: (t: number) =>
+        phone
+          ? `transform: translateY(calc(${from * t}px + ${(1 - t) * 100}%))`
+          : `opacity: ${t}; transform: scale(${0.94 + 0.06 * t})`,
+    }
+  }
+
+  // Material emphasized decelerate / accelerate.
+  const decelerate = (t: number) => 1 - Math.pow(1 - t, 4)
+  const accelerate = (t: number) => t * t * t
 
   function close() {
     open = false
+  }
+
+  function onPointerDown(event: PointerEvent) {
+    if (event.button !== 0 || (event.target as HTMLElement).closest('button')) return
+    dragging = true
+    startY = event.clientY
+    startTime = performance.now()
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  }
+
+  function onPointerMove(event: PointerEvent) {
+    if (!dragging) return
+    dragY = Math.max(0, event.clientY - startY)
+  }
+
+  function onPointerUp() {
+    if (!dragging) return
+    dragging = false
+    const velocity = dragY / Math.max(1, performance.now() - startTime)
+    if (dragY > 110 || (dragY > 24 && velocity > 0.6)) close()
+    else dragY = 0
   }
 </script>
 
@@ -38,31 +90,56 @@
     <Dialog.Overlay forceMount>
       {#snippet child({ props, open: shown })}
         {#if shown}
-          <div {...props} class="fixed inset-0 z-50 bg-ink-950/55 backdrop-blur-[3px]" transition:fade={{ duration: 140 }}></div>
+          <div {...props} class="fixed inset-0 z-50 bg-scrim/32 print:hidden" role="presentation" onclick={close} transition:fade={{ duration: 250 }}></div>
         {/if}
       {/snippet}
     </Dialog.Overlay>
-    <Dialog.Content forceMount>
+    <Dialog.Content forceMount interactOutsideBehavior="ignore">
       {#snippet child({ props, open: shown })}
         {#if shown}
-          <div {...props} class="pointer-events-none fixed inset-0 z-50 grid items-end sm:place-items-center sm:p-5">
+          <!-- The layout wrapper spans the screen, so a tap on it (outside the panel) is a scrim tap. -->
+          <div
+            {...props}
+            class="fixed inset-0 z-50 flex items-end justify-center pb-[var(--kb,0px)] print:hidden md:items-center md:p-6"
+            onclick={(event) => {
+              if (event.target === event.currentTarget) close()
+            }}
+          >
             <div
-              class={`pointer-events-auto max-h-[94svh] w-full overflow-hidden rounded-t-3xl border border-paper-200 bg-paper-50 shadow-lifted sm:max-h-[92svh] sm:rounded-3xl ${widths[size]}`}
-              in:fly={{ y: 28, duration: 190 }}
-              out:fly={{ y: 18, duration: 140 }}
+              data-sheet
+              class={`flex max-h-[calc(100dvh-var(--safe-top)-var(--kb,0px)-3.5rem)] w-full flex-col overflow-hidden rounded-t-[28px] bg-surface-container-low shadow-[var(--shadow-e1)] md:max-h-[88dvh] md:rounded-[28px] ${widths[size]}`}
+              style:transform={dragY ? `translateY(${dragY}px)` : undefined}
+              style:transition={dragging ? 'none' : 'transform 260ms var(--ease-ios)'}
+              in:sheet={{ duration: 400, easing: decelerate }}
+              out:sheet={{ duration: 250, easing: accelerate }}
             >
-              <header class="flex items-start justify-between gap-4 border-b border-paper-200 bg-white px-5 py-4 sm:px-6 sm:py-5">
-                <div>
-                  <Dialog.Title class="font-display text-xl font-semibold leading-none tracking-[-0.025em] text-ink-950 sm:text-2xl">{title}</Dialog.Title>
-                  {#if description}<Dialog.Description class="mt-2 text-xs leading-5 text-ink-600">{description}</Dialog.Description>{/if}
-                </div>
-                <Button variant="ghost" size="icon" title="Close" onclick={close}><X size={19} weight="bold" /></Button>
-              </header>
-              <div class="max-h-[calc(94svh-8rem)] overflow-y-auto px-4 py-4 sm:max-h-[calc(92svh-9rem)] sm:px-6 sm:py-5">
+              <div
+                class="shrink-0 touch-none select-none"
+                role="presentation"
+                onpointerdown={onPointerDown}
+                onpointermove={onPointerMove}
+                onpointerup={onPointerUp}
+                onpointercancel={onPointerUp}
+              >
+                <div class="mx-auto mt-4 h-1 w-8 rounded-full bg-on-surface-variant/40 md:hidden" aria-hidden="true"></div>
+                <header class="flex items-start gap-2 pb-2 pl-6 pr-3 pt-4 md:pt-6">
+                  <div class="min-w-0 flex-1">
+                    <Dialog.Title class="type-title-large text-on-surface">{title}</Dialog.Title>
+                    {#if description}<Dialog.Description class="type-body-medium mt-1 text-on-surface-variant">{description}</Dialog.Description>{/if}
+                  </div>
+                  <button
+                    type="button"
+                    class="state-layer -mt-1 grid size-10 shrink-0 place-items-center rounded-full text-on-surface-variant"
+                    aria-label="Close"
+                    onclick={close}
+                  ><X size={22} /></button>
+                </header>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[calc(var(--safe-bottom)+1.5rem)] pt-2 md:px-6 md:pb-6">
                 {@render children()}
               </div>
               {#if footer}
-                <footer class="flex flex-wrap justify-end gap-2 border-t border-paper-200 bg-white px-5 py-3">
+                <footer class="flex flex-wrap justify-end gap-2 border-t border-outline-variant bg-surface-container-low px-5 py-3 pb-[calc(var(--safe-bottom)+0.75rem)]">
                   {@render footer()}
                 </footer>
               {/if}

@@ -61,7 +61,7 @@
       <img
         src={report.photoDataUrl}
         alt="Photographed Daily Homework Report"
-        class="max-h-[170mm] w-full rounded-md border border-register-200 object-contain"
+        class="max-h-[170mm] w-full rounded-xl border border-[#e4e4e7] object-contain"
       />
     </figure>
   {:else}
@@ -77,7 +77,7 @@
           <tr class="break-inside-avoid">
             <td>
               <div class="flex items-start gap-2">
-                <span class="grid size-5 shrink-0 place-items-center rounded bg-register-700 text-[8px] font-bold text-white">
+                <span class="grid size-5 shrink-0 place-items-center rounded-full bg-[#dcfce7] text-[8px] font-bold text-[#14532d]">
                   {index + 1}
                 </span>
                 <span class="font-bold">{subjectName(item.subjectId)}</span>

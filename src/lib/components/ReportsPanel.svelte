@@ -12,8 +12,10 @@
   import type { AttendanceReport, AttendanceReportStudent, ReportPeriodType } from '../types'
   import { displayPhoneNumber, normalizePhoneNumber, phoneCallHref } from '../phone'
   import Badge from './ui/Badge.svelte'
+  import BarButton from './ui/BarButton.svelte'
   import Button from './ui/Button.svelte'
   import Card from './ui/Card.svelte'
+  import Segmented from './ui/Segmented.svelte'
   import TextField from './ui/TextField.svelte'
 
   let {
@@ -120,114 +122,109 @@
 </script>
 
 <section class="space-y-4">
-  <Card class="overflow-hidden">
-    <div class="grid grid-cols-3 border-b border-paper-200 bg-paper-100 p-1.5">
-      {#each periodOptions as option (option.id)}
-        <button
-          class={`min-h-14 rounded-xl px-2 py-2 text-center transition ${type === option.id ? 'bg-white text-ink-950 shadow-sm ring-1 ring-paper-200' : 'text-ink-600 hover:text-ink-950'}`}
-          aria-pressed={type === option.id}
-          onclick={() => (type = option.id)}
-        >
-          <option.icon size={17} weight="bold" class="mx-auto" />
-          <span class="mt-1 block text-[11px] font-extrabold">{option.label}</span>
-          <span class="mt-0.5 hidden text-[9px] font-semibold sm:block">{option.description}</span>
-        </button>
-      {/each}
-    </div>
-    <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:justify-between">
-      <div class="min-w-0">
+  <Segmented label="Report period" bind:value={type} options={periodOptions.map((option) => ({ value: option.id, label: option.label }))} />
+
+  <Card class="p-4">
+    <div class="flex items-end gap-3">
+      <div class="min-w-0 flex-1">
         {#if type !== 'monthly'}
-          <TextField label={type === 'daily' ? 'Report date' : 'Choose a date in the week'} bind:value={reportDate} type="date" min={minDate} max={maxDate} />
+          <TextField label={type === 'daily' ? 'Report date' : 'Any date in the week'} bind:value={reportDate} type="date" min={minDate} max={maxDate} />
         {:else}
-          <p class="text-[10px] font-extrabold uppercase tracking-[0.12em] text-ink-600">Report period</p>
-          <p class="mt-1 font-display text-xl font-semibold text-ink-950">{report.label}</p>
+          <p class="type-label-medium text-on-surface-variant">Report period</p>
+          <p class="type-title-medium text-on-surface">{report.label}</p>
         {/if}
       </div>
-      <div class="flex items-center justify-between gap-3 sm:justify-end">
-        <div class="min-w-0 sm:text-right">
-          <p class="text-[10px] font-extrabold uppercase tracking-[0.1em] text-ink-600">{type} report</p>
-          <p class="mt-0.5 truncate text-xs font-bold text-ink-950">{report.label}</p>
-        </div>
-        <Button onclick={() => onprint(report)}><Printer size={17} weight="bold" /> Print</Button>
-      </div>
+      <Button variant="secondary" class="h-14! rounded-xl!" onclick={() => onprint(report)}><Printer size={20} /> Print</Button>
     </div>
-  </Card>
+    {#if type !== 'monthly'}<p class="type-body-small mt-2 px-1 text-on-surface-variant">{report.label}</p>{/if}
 
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-5">
-    {#each [
-      { label: 'Present', value: report.present, tone: 'text-register-900', surface: 'bg-register-100' },
-      { label: 'Absent', value: report.absent, tone: 'text-red-900', surface: 'bg-red-100' },
-      { label: 'Leave', value: report.leave, tone: 'text-yellow-900', surface: 'bg-yellow-100' },
-      { label: 'Unmarked', value: report.unmarked, tone: 'text-ink-800', surface: 'bg-paper-100' },
-      { label: 'Attendance', value: `${attendanceRate.toFixed(1)}%`, tone: 'text-register-900', surface: 'bg-register-50' },
-    ] as stat (stat.label)}
-      <Card class={`p-4 ${stat.surface}`}>
-        <p class={`text-2xl font-black tracking-tight ${stat.tone}`}>{stat.value}</p>
-        <p class="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-ink-600">{stat.label}</p>
-      </Card>
-    {/each}
-  </div>
-
-  {#if type === 'daily'}
-    <Card class="overflow-hidden">
-      <div class="flex flex-col gap-2 border-b border-paper-200 bg-red-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div class="flex items-center gap-2"><h2 class="text-sm font-extrabold text-red-950">Absent students</h2><Badge tone={absentees.length ? 'danger' : 'success'}>{absentees.length}</Badge></div>
-          <p class="mt-1 text-[10px] font-semibold leading-4 text-red-900/70">Call directly, or open SMS and WhatsApp with the absence message prefilled. Nothing is sent automatically.</p>
-        </div>
-        <Button variant="secondary" size="sm" disabled={!absentees.length} onclick={() => onprintabsentees(report)}><Printer size={16} weight="bold" /> Print absentee list</Button>
+    <div class="mt-4 flex items-end justify-between gap-3 border-t border-outline-variant pt-4">
+      <div>
+        <p class="type-display-small leading-none text-on-surface">{attendanceRate.toFixed(1)}<span class="type-title-large text-on-surface-variant">%</span></p>
+        <p class="type-label-medium mt-1 text-on-surface-variant">Attendance</p>
       </div>
-      <div class="divide-y divide-paper-200 bg-white">
-        {#each absentees as student (student.enrollment.id)}
-          <div class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
-            <div class="flex min-w-0 items-center gap-3 sm:flex-1">
-              {#if student.student.photoDataUrl}
-                <img src={student.student.photoDataUrl} alt={`${student.student.name} profile`} class="size-12 shrink-0 rounded-xl border border-paper-200 object-cover shadow-sm" />
-              {/if}
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-bold text-ink-950">{student.student.name}</p>
-                <p class="mt-0.5 text-[10px] font-semibold text-ink-600">Roll {student.enrollment.rollNumber} · Absent for {sessionLabel(student)}</p>
-                <p class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-ink-600"><span class="inline-flex items-center gap-1"><CalendarBlank size={13} weight="bold" /> {report.label}</span><span>{student.student.phone ? displayPhoneNumber(student.student.phone) : 'No phone number'}</span></p>
-              </div>
-            </div>
-            {#if hasValidPhone(student.student.phone)}
-              <div class="grid grid-cols-3 gap-2 sm:flex">
-                <Button variant="secondary" size="sm" onclick={() => callStudent(student)}><Phone size={16} weight="bold" /> Call</Button>
-                <Button variant="secondary" size="sm" onclick={() => openSms(student)}><ChatText size={16} weight="bold" /> SMS</Button>
-                <Button variant="soft" size="sm" onclick={() => openWhatsapp(student)}><WhatsappLogo size={16} weight="bold" /> WhatsApp</Button>
-              </div>
-            {:else}
-              <Badge tone="warning">Add phone in Students</Badge>
-            {/if}
-          </div>
-        {:else}
-          <div class="px-5 py-10 text-center">
-            <p class="text-sm font-bold text-ink-950">No students are marked absent</p>
-            <p class="mt-1 text-xs text-ink-600">Explicit A marks for this date will appear here.</p>
+      <div class="grid grid-cols-4 gap-3 text-center">
+        {#each [
+          { label: 'Present', value: report.present, dot: 'bg-primary' },
+          { label: 'Absent', value: report.absent, dot: 'bg-error' },
+          { label: 'Leave', value: report.leave, dot: 'bg-amber-500' },
+          { label: 'Blank', value: report.unmarked, dot: 'bg-outline' },
+        ] as stat (stat.label)}
+          <div>
+            <p class="type-title-medium text-on-surface">{stat.value}</p>
+            <p class="type-label-small flex items-center justify-center gap-1 text-on-surface-variant"><span class={`size-1.5 rounded-full ${stat.dot}`}></span>{stat.label}</p>
           </div>
         {/each}
       </div>
-    </Card>
+    </div>
+  </Card>
+
+  {#if type === 'daily'}
+    <section>
+      <div class="flex min-h-10 items-center justify-between gap-3 pb-1 pl-4">
+        <h2 class="type-title-small text-primary">Absent · {absentees.length}</h2>
+        <Button variant="ghost" size="sm" disabled={!absentees.length} onclick={() => onprintabsentees(report)}><Printer size={18} /> Print list</Button>
+      </div>
+      {#if absentees.length}
+        <div class="flex flex-col gap-0.5 [&>*]:rounded-[4px] [&>*]:bg-surface-container-lowest [&>*:first-child]:rounded-t-[20px] [&>*:last-child]:rounded-b-[20px]">
+          {#each absentees as student (student.enrollment.id)}
+            <div class="flex min-h-[4.5rem] items-center gap-3 py-2 pl-4 pr-2">
+              {#if student.student.photoDataUrl}
+                <img src={student.student.photoDataUrl} alt="" class="size-10 shrink-0 rounded-full object-cover" />
+              {:else}
+                <span class="type-title-medium grid size-10 shrink-0 place-items-center rounded-full bg-error-container text-on-error-container">{student.enrollment.rollNumber}</span>
+              {/if}
+              <div class="min-w-0 flex-1">
+                <p class="type-body-large truncate text-on-surface">{student.student.name}</p>
+                <p class="type-body-small truncate text-on-surface-variant">Absent {sessionLabel(student)} · {student.student.phone ? displayPhoneNumber(student.student.phone) : 'No phone'}</p>
+              </div>
+              {#if hasValidPhone(student.student.phone)}
+                <div class="flex shrink-0">
+                  <BarButton label={`Call ${student.student.name}`} onclick={() => callStudent(student)}><Phone /></BarButton>
+                  <BarButton label={`SMS ${student.student.name}`} onclick={() => openSms(student)}><ChatText /></BarButton>
+                  <BarButton label={`WhatsApp ${student.student.name}`} class="text-primary!" onclick={() => openWhatsapp(student)}><WhatsappLogo /></BarButton>
+                </div>
+              {:else}
+                <Badge tone="warning">No phone</Badge>
+              {/if}
+            </div>
+          {/each}
+        </div>
+        <p class="type-body-small px-4 pt-2 text-on-surface-variant">Messages open prefilled in SMS or WhatsApp. Nothing is sent automatically.</p>
+      {:else}
+        <Card><p class="type-body-medium px-4 py-8 text-center text-on-surface-variant">No students are marked absent on this date.</p></Card>
+      {/if}
+    </section>
   {/if}
 
-  <Card class="overflow-hidden">
-    <div class="border-b border-paper-200 px-4 py-3">
-      <h2 class="text-sm font-extrabold text-ink-950">Student attendance detail</h2>
-      <p class="mt-1 text-[10px] font-semibold text-ink-600">Each timing counts as 0.5. Weekends, holidays, and inactive enrollment dates are excluded.</p>
+  <section>
+    <h2 class="type-title-small flex min-h-10 items-center px-4 pb-1 text-primary">Students</h2>
+    <div class="flex flex-col gap-0.5 md:hidden [&>*]:rounded-[4px] [&>*]:bg-surface-container-lowest [&>*:first-child]:rounded-t-[20px] [&>*:last-child]:rounded-b-[20px]">
+      {#each report.students as student (student.enrollment.id)}
+        <div class="flex min-h-14 items-center gap-3 px-4 py-2">
+          <span class="type-label-large w-7 shrink-0 text-on-surface-variant">{student.enrollment.rollNumber}</span>
+          <div class="min-w-0 flex-1">
+            <p class="type-body-large truncate text-on-surface">{student.student.name}</p>
+            <p class="type-body-small text-on-surface-variant">P {student.present} · A {student.absent} · L {student.leave}{student.unmarked ? ` · blank ${student.unmarked}` : ''}</p>
+          </div>
+          <span class="type-title-medium shrink-0 tabular-nums text-on-surface">{attendancePercent(student)}</span>
+        </div>
+      {:else}
+        <p class="type-body-medium px-4 py-8 text-center text-on-surface-variant">No students are enrolled in this register.</p>
+      {/each}
     </div>
-    <div class="overflow-auto">
-      <table class="w-full min-w-160 text-xs">
-        <thead class="bg-paper-100 text-ink-600">
+    <Card class="hidden overflow-hidden md:block">
+      <table class="w-full text-sm">
+        <thead class="type-label-medium bg-surface-container-high text-on-surface-variant">
           <tr><th class="px-4 py-3 text-left">Roll</th><th class="px-4 py-3 text-left">Name with parentage</th><th class="px-3 py-3 text-center">Present</th><th class="px-3 py-3 text-center">Absent</th><th class="px-3 py-3 text-center">Leave</th><th class="px-3 py-3 text-center">Unmarked</th><th class="px-4 py-3 text-right">Attendance</th></tr>
         </thead>
-        <tbody class="divide-y divide-paper-200 bg-white">
+        <tbody class="divide-y divide-outline-variant">
           {#each report.students as student (student.enrollment.id)}
-            <tr><td class="px-4 py-3 font-bold text-ink-950">{student.enrollment.rollNumber}</td><td class="px-4 py-3 font-semibold text-ink-950">{student.student.name}</td><td class="px-3 py-3 text-center font-bold text-register-900">{student.present}</td><td class="px-3 py-3 text-center font-bold text-red-900">{student.absent}</td><td class="px-3 py-3 text-center font-bold text-yellow-900">{student.leave}</td><td class="px-3 py-3 text-center text-ink-600">{student.unmarked}</td><td class="px-4 py-3 text-right font-black text-register-900">{attendancePercent(student)}</td></tr>
-          {:else}
-            <tr><td colspan="7" class="px-4 py-12 text-center text-ink-600">No students are enrolled in this register.</td></tr>
+            <tr><td class="px-4 py-3 text-on-surface-variant">{student.enrollment.rollNumber}</td><td class="px-4 py-3 text-on-surface">{student.student.name}</td><td class="px-3 py-3 text-center">{student.present}</td><td class="px-3 py-3 text-center text-error">{student.absent}</td><td class="px-3 py-3 text-center">{student.leave}</td><td class="px-3 py-3 text-center text-on-surface-variant">{student.unmarked}</td><td class="px-4 py-3 text-right font-medium text-primary">{attendancePercent(student)}</td></tr>
           {/each}
         </tbody>
       </table>
-    </div>
-  </Card>
+    </Card>
+    <p class="type-body-small px-4 pt-2 text-on-surface-variant">Each timing counts as 0.5. Weekends, holidays and dates before enrollment are excluded.</p>
+  </section>
 </section>

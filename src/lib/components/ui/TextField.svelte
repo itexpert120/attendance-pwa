@@ -30,19 +30,21 @@
   } = $props()
 </script>
 
-<label class={`grid gap-1.5 text-left ${className}`}>
-  <span class="text-[11px] font-bold tracking-[0.01em] text-ink-800">{label}</span>
-  <input
-    bind:value
-    {type}
-    {placeholder}
-    {required}
-    {disabled}
-    {min}
-    {max}
-    {step}
-    {autocomplete}
-    class="min-h-12 w-full rounded-xl border border-paper-200 bg-paper-50/60 px-3.5 text-sm font-medium text-ink-950 outline-none transition placeholder:font-normal placeholder:text-ink-600/50 focus:border-register-600 focus:bg-white focus:ring-4 focus:ring-register-100 disabled:bg-paper-100 sm:min-h-11"
-  />
-  {#if help}<span class="text-[11px] leading-4 text-ink-600">{help}</span>{/if}
+<label class={`group grid min-w-0 gap-1 text-left ${className}`}>
+  <span class="relative block min-w-0 rounded-xl border border-outline bg-surface-container-lowest transition-[border-color,box-shadow] duration-150 group-hover:border-on-surface-variant focus-within:border-primary! focus-within:shadow-[0_0_0_1px_var(--color-primary)] has-[:disabled]:opacity-40">
+    <span class="type-body-small pointer-events-none absolute left-4 top-2 font-medium text-on-surface-variant group-focus-within:text-primary">{label}</span>
+    <input
+      bind:value
+      {type}
+      {placeholder}
+      {required}
+      {disabled}
+      {min}
+      {max}
+      {step}
+      {autocomplete}
+      class="type-body-large block w-full min-w-0 rounded-xl bg-transparent px-4 pb-2 pt-6 text-on-surface caret-primary outline-none placeholder:text-on-surface-variant/60 h-14"
+    />
+  </span>
+  {#if help}<span class="type-body-small px-4 text-on-surface-variant">{help}</span>{/if}
 </label>

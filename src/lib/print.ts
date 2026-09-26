@@ -3,7 +3,6 @@ const PRINT_FONT_SPECS = [
   "500 12px Inter",
   "600 12px Inter",
   "700 12px Inter",
-  "700 24px Merriweather",
 ] as const;
 
 export async function printDocument() {

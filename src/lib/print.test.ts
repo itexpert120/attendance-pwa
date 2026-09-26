@@ -7,7 +7,7 @@ describe("printDocument", () => {
     vi.restoreAllMocks();
   });
 
-  it("loads Inter and Merriweather before opening the print dialog", async () => {
+  it("loads the Inter weights reports use before opening the print dialog", async () => {
     const loaded: string[] = [];
     const print = vi.fn();
     vi.stubGlobal("document", {
@@ -23,8 +23,8 @@ describe("printDocument", () => {
 
     await printDocument();
 
-    expect(loaded.some((spec) => spec.includes("Inter"))).toBe(true);
-    expect(loaded.some((spec) => spec.includes("Merriweather"))).toBe(true);
+    expect(loaded.some((spec) => spec.startsWith("700") && spec.includes("Inter"))).toBe(true);
+    expect(loaded.every((spec) => spec.includes("Inter"))).toBe(true);
     expect(print).toHaveBeenCalledOnce();
   });
 });

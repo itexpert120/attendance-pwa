@@ -60,7 +60,7 @@
       {#if absentees.length}
         <div class="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-[10px]">
           {#each absentees as student (student.enrollment.id)}
-            <p class="border-b border-register-200 py-1">
+            <p class="border-b border-[#e4e4e7] py-1">
               <span class="font-bold">Roll {student.enrollment.rollNumber}</span>
               · {student.student.name} · {sessionLabel(student)}
             </p>

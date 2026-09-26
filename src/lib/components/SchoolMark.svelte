@@ -10,9 +10,9 @@
   } = $props()
 </script>
 
-<div class={`grid shrink-0 place-items-center overflow-hidden rounded-xl border border-white/10 bg-register-800 text-white shadow-sm ${compact ? 'size-9' : 'size-12'}`}>
+<div class={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-on-primary ${compact ? 'size-10' : 'size-12'}`}>
   {#if logoDataUrl}
-    <img src={logoDataUrl} {alt} class="size-full bg-white object-contain p-0.5" />
+    <img src={logoDataUrl} {alt} class="size-full bg-surface-container-lowest object-contain p-0.5" />
   {:else}
     <svg viewBox="0 0 48 48" class={compact ? 'size-6' : 'size-8'} fill="none" aria-hidden="true">
       <path d="M8 18 24 9l16 9-16 9L8 18Z" fill="currentColor" opacity=".95" />

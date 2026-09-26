@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeft from 'phosphor-svelte/lib/ArrowLeft'
   import BookOpen from 'phosphor-svelte/lib/BookOpen'
   import Calendar from 'phosphor-svelte/lib/Calendar'
   import CalendarBlank from 'phosphor-svelte/lib/CalendarBlank'
@@ -11,6 +10,7 @@
   import { tick } from 'svelte'
   import { SvelteSet } from 'svelte/reactivity'
   import type { AttendanceState } from '../app-state.svelte'
+  import { navigate, paths } from '../navigation'
   import {
     dateKey,
     marksPercentage,
@@ -21,20 +21,16 @@
   import { printDocument } from '../print'
   import PrintPeriodicTestReport from './PrintPeriodicTestReport.svelte'
   import Badge from './ui/Badge.svelte'
-  import Button from './ui/Button.svelte'
+  import BarButton from './ui/BarButton.svelte'
   import Card from './ui/Card.svelte'
+  import Screen from './ui/Screen.svelte'
+  import Segmented from './ui/Segmented.svelte'
   import SelectField from './ui/SelectField.svelte'
   import TextField from './ui/TextField.svelte'
 
-  let {
-    state: appState,
-    onback,
-    onopentest,
-  }: {
-    state: AttendanceState
-    onback: () => void
-    onopentest: (testId: string) => void
-  } = $props()
+  let { state: appState }: { state: AttendanceState } = $props()
+
+  const onopentest = (testId: string) => navigate(paths.test(testId))
 
   const now = new Date()
   const today = dateKey(now.getFullYear(), now.getMonth() + 1, now.getDate())
@@ -184,69 +180,58 @@
   }
 </script>
 
-<main class="min-h-svh bg-paper-100 text-ink-950 print:hidden">
-  <header class="border-b border-paper-200 bg-white/95 backdrop-blur">
-    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3.5 sm:px-6">
-      <Button variant="ghost" size="icon" title="Back to Tests" onclick={onback}><ArrowLeft size={19} weight="bold" /></Button>
-      <div class="min-w-0 flex-1"><h1 class="font-display text-xl font-semibold tracking-[-0.025em] sm:text-2xl">Test Reports</h1><p class="mt-0.5 hidden text-[10px] font-bold uppercase tracking-[0.11em] text-ink-600 sm:block">Daily, weekly, and monthly views</p></div>
-      <div class="hidden sm:block"><Button disabled={!reportTests.length || (mode === 'student' && !studentId)} onclick={printReport}><Printer size={17} weight="bold" /> Print report</Button></div>
-    </div>
-  </header>
-
-  <div class="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-    <Button class="mb-3 w-full sm:hidden" disabled={!reportTests.length || (mode === 'student' && !studentId)} onclick={printReport}><Printer size={17} weight="bold" /> Print report</Button>
+<Screen title="Test Reports" subtitle={period.label} back={paths.tests()} backLabel="Back to Tests" width="lg">
+  {#snippet actions()}
+    <BarButton label="Print report" disabled={!reportTests.length || (mode === 'student' && !studentId)} onclick={printReport}><Printer /></BarButton>
+  {/snippet}
+  <div class="space-y-4">
     <Card class="overflow-hidden">
-      <div class="grid grid-cols-2 border-b border-paper-200 bg-paper-100 p-1.5">
-        <button class={`min-h-12 rounded-xl px-3 text-sm font-extrabold transition ${mode === 'subject' ? 'bg-white text-ink-950 shadow-sm ring-1 ring-paper-200' : 'text-ink-600'}`} aria-pressed={mode === 'subject'} onclick={() => (mode = 'subject')}><span class="inline-flex items-center gap-2"><BookOpen size={17} weight="bold" /> Subject Report</span></button>
-        <button class={`min-h-12 rounded-xl px-3 text-sm font-extrabold transition ${mode === 'student' ? 'bg-white text-ink-950 shadow-sm ring-1 ring-paper-200' : 'text-ink-600'}`} aria-pressed={mode === 'student'} onclick={() => (mode = 'student')}><span class="inline-flex items-center gap-2"><User size={17} weight="bold" /> Student Report</span></button>
-      </div>
-      <div class="grid grid-cols-3 border-b border-paper-200 bg-white p-1.5">
-        {#each periodOptions as option (option.id)}
-          <button class={`min-h-16 rounded-xl px-2 py-2 text-center transition ${periodType === option.id ? 'bg-register-50 text-register-900 ring-1 ring-register-100' : 'text-ink-600 hover:text-ink-950'}`} aria-pressed={periodType === option.id} onclick={() => (periodType = option.id)}><option.icon size={17} weight="bold" class="mx-auto" /><span class="mt-1 block text-[11px] font-extrabold">{option.label}</span><span class="mt-0.5 hidden text-[9px] font-semibold sm:block">{option.description}</span></button>
-        {/each}
+      <div class="grid gap-2 p-3 pb-1">
+        <Segmented label="Report type" bind:value={mode} options={[{ value: 'subject' as const, label: 'By Subject', icon: BookOpen }, { value: 'student' as const, label: 'By Student', icon: User }]} />
+        <Segmented label="Report period" bind:value={periodType} options={periodOptions.map((option) => ({ value: option.id, label: option.label }))} />
       </div>
       <div class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
         <TextField label={periodType === 'daily' ? 'Report date' : periodType === 'weekly' ? 'Choose a date in the week' : 'Choose a date in the month'} bind:value={anchorDate} type="date" />
         <SelectField label="Subject" bind:value={subjectId} options={subjectOptions} />
         <SelectField label="Class Group" bind:value={classGroupId} options={classOptions} />
-        {#if mode === 'student'}<SelectField label="Student" bind:value={studentId} options={studentOptions} />{:else}<div class="flex items-end rounded-xl bg-register-50 px-4 py-3"><div><p class="text-[10px] font-extrabold uppercase tracking-[0.08em] text-register-800">Report period</p><p class="mt-1 text-sm font-bold text-register-900">{period.label}</p></div></div>{/if}
+        {#if mode === 'student'}<SelectField label="Student" bind:value={studentId} options={studentOptions} />{:else}<div class="flex items-end rounded-xl bg-primary-container/40 px-4 py-3"><div><p class="text-[12px] font-medium text-on-primary-container">Report period</p><p class="mt-1 text-sm font-medium text-on-primary-container">{period.label}</p></div></div>{/if}
       </div>
     </Card>
 
-    <section class="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <section class="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {#each [
-        { label: 'Tests', value: aggregate.totalTests, surface: 'bg-white' },
-        { label: 'Results', value: aggregate.numericCount, surface: 'bg-register-50' },
-        { label: 'Absent', value: aggregate.absentCount, surface: 'bg-red-50' },
-        { label: 'Not entered', value: aggregate.notEnteredCount, surface: 'bg-amber-50' },
-        { label: 'Average', value: aggregate.averagePercentage == null ? '—' : `${aggregate.averagePercentage.toFixed(2)}%`, surface: 'col-span-2 bg-sky-50 lg:col-span-1' },
+        { label: 'Tests', value: aggregate.totalTests, surface: 'bg-surface-container-lowest' },
+        { label: 'Results', value: aggregate.numericCount, surface: 'bg-primary-container/40' },
+        { label: 'Absent', value: aggregate.absentCount, surface: 'bg-error-container' },
+        { label: 'Not entered', value: aggregate.notEnteredCount, surface: 'bg-warning-container' },
+        { label: 'Average', value: aggregate.averagePercentage == null ? '—' : `${aggregate.averagePercentage.toFixed(2)}%`, surface: 'col-span-2 bg-tertiary-container lg:col-span-1' },
       ] as stat (stat.label)}
-        <Card class={`p-4 ${stat.surface}`}><p class="font-display text-2xl font-semibold tracking-tight">{stat.value}</p><p class="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-ink-600">{stat.label}</p></Card>
+        <Card class={`p-4 ${stat.surface}`}><p class="text-[24px] font-medium">{stat.value}</p><p class="mt-0.5 type-label-medium text-on-surface-variant">{stat.label}</p></Card>
       {/each}
     </section>
 
-    <section class="mt-7 space-y-4">
-      <div><p class="text-[10px] font-extrabold uppercase tracking-[0.1em] text-register-700">{mode === 'student' ? 'Individual results' : 'Subject breakdown'}</p><h2 class="mt-1 font-display text-2xl font-semibold">{period.label}</h2></div>
+    <section class="space-y-4 pt-3">
+      <div class="px-1"><p class="text-[13px] font-medium text-on-surface-variant">{mode === 'student' ? 'Individual results' : 'Subject breakdown'}</p><h2 class="mt-1 text-[22px] font-medium">{period.label}</h2></div>
       {#each reportSubjects as group (group.subject.id)}
         <Card class="overflow-hidden">
-          <div class="flex items-center justify-between gap-3 border-b border-paper-200 bg-white px-4 py-3"><div class="flex min-w-0 items-center gap-3"><div class="grid size-10 shrink-0 place-items-center rounded-xl bg-register-50 text-register-800"><BookOpen size={19} weight="bold" /></div><div class="min-w-0"><h3 class="truncate text-sm font-extrabold">{group.subject.name}</h3><p class="mt-0.5 text-[10px] font-semibold text-ink-600">{group.tests.length} Test{group.tests.length === 1 ? '' : 's'}</p></div></div><Badge tone="info">{mode === 'student' ? 'Student results' : 'Subject'}</Badge></div>
-          <div class="divide-y divide-paper-200 bg-white">
+          <div class="flex items-center justify-between gap-3 border-b border-outline-variant bg-surface-container-lowest px-4 py-3"><div class="flex min-w-0 items-center gap-3"><div class="grid size-10 shrink-0 place-items-center rounded-xl bg-primary-container/40 text-on-primary-container"><BookOpen size={19} weight="bold" /></div><div class="min-w-0"><h3 class="truncate text-sm font-medium">{group.subject.name}</h3><p class="mt-0.5 type-label-medium text-on-surface-variant">{group.tests.length} Test{group.tests.length === 1 ? '' : 's'}</p></div></div><Badge tone="info">{mode === 'student' ? 'Student results' : 'Subject'}</Badge></div>
+          <div class="divide-y divide-outline-variant bg-surface-container-lowest">
             {#each group.tests as test (test.id)}
               {@const summary = appState.summaryForTest(test.id)}
               {@const result = resultForStudent(test)}
-              <button class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-register-50/50" onclick={() => onopentest(test.id)}>
-                <div class="grid size-11 shrink-0 place-items-center rounded-xl bg-paper-100 text-ink-600"><ClipboardText size={20} weight="duotone" /></div>
-                <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="truncate text-sm font-bold">{test.name}</p>{#if mode === 'student'}<Badge tone={resultTone(test)}>{resultLabel(test)}</Badge>{/if}</div><p class="mt-1 text-[10px] font-semibold text-ink-600">{dateLabel(test.date)} · Class {groupName(test)} · {test.totalMarks} total marks</p>{#if mode === 'subject'}<p class="mt-1 text-[10px] font-semibold text-ink-600">{summary?.numericCount ?? 0} results · {summary?.absentCount ?? 0} absent · {summary?.notEnteredCount ?? 0} not entered · {summary?.average == null ? 'No average' : `${marksPercentage(summary.average, test.totalMarks).toFixed(2)}% average`}</p>{:else if result?.status === 'marks'}<p class="mt-1 text-[10px] font-semibold text-ink-600">{marksPercentage(result.marks ?? 0, test.totalMarks).toFixed(2)}%</p>{/if}</div>
-                <CaretRight size={18} weight="bold" class="shrink-0 text-ink-600" />
+              <button class="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-primary-container/40" onclick={() => onopentest(test.id)}>
+                <div class="grid size-11 shrink-0 place-items-center rounded-2xl bg-surface-container text-on-surface-variant"><ClipboardText size={20} weight="duotone" /></div>
+                <div class="min-w-0 flex-1"><div class="flex flex-wrap items-center gap-2"><p class="truncate text-sm font-medium">{test.name}</p>{#if mode === 'student'}<Badge tone={resultTone(test)}>{resultLabel(test)}</Badge>{/if}</div><p class="mt-1 type-label-medium text-on-surface-variant">{dateLabel(test.date)} · Class {groupName(test)} · {test.totalMarks} total marks</p>{#if mode === 'subject'}<p class="mt-1 type-label-medium text-on-surface-variant">{summary?.numericCount ?? 0} results · {summary?.absentCount ?? 0} absent · {summary?.notEnteredCount ?? 0} not entered · {summary?.average == null ? 'No average' : `${marksPercentage(summary.average, test.totalMarks).toFixed(2)}% average`}</p>{:else if result?.status === 'marks'}<p class="mt-1 type-label-medium text-on-surface-variant">{marksPercentage(result.marks ?? 0, test.totalMarks).toFixed(2)}%</p>{/if}</div>
+                <CaretRight size={18} weight="bold" class="shrink-0 text-on-surface-variant" />
               </button>
             {/each}
           </div>
         </Card>
       {:else}
-        <Card class="grid min-h-60 place-items-center border-dashed p-6 text-center"><div><div class="mx-auto grid size-12 place-items-center rounded-xl bg-paper-100 text-ink-600">{#if mode === 'student'}<User size={23} />{:else}<BookOpen size={23} />{/if}</div><h3 class="mt-4 font-bold">No Test Results in this period</h3><p class="mt-1 text-sm text-ink-600">Choose another date, Subject, or Student.</p></div></Card>
+        <Card class="grid min-h-60 place-items-center border-dashed p-6 text-center"><div><div class="mx-auto grid size-12 place-items-center rounded-2xl bg-surface-container text-on-surface-variant">{#if mode === 'student'}<User size={23} />{:else}<BookOpen size={23} />{/if}</div><h3 class="mt-4 font-medium">No Test Results in this period</h3><p class="mt-1 text-sm text-on-surface-variant">Choose another date, Subject, or Student.</p></div></Card>
       {/each}
     </section>
   </div>
-</main>
+</Screen>
 
 <PrintPeriodicTestReport state={appState} {mode} periodLabel={period.label} tests={reportTests} roster={reportRoster} {aggregate} {subjectId} {studentId} {classGroupId} />

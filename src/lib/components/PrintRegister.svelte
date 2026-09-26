@@ -167,7 +167,7 @@
             <th rowspan="2">Roll</th>
             <th rowspan="2" class="min-w-32 text-left">Name with parentage</th>
             {#each chunk as day (day)}
-              <th colspan="2" class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>{day}</th>
+              <th colspan="2" class={isHolidayDay(appState.holidays, register, day) ? 'print-holiday-head' : ''}>{day}</th>
             {/each}
             {#if chunkIndex === dayChunks.length - 1}
               <th rowspan="2">Month</th>
@@ -177,8 +177,8 @@
           </tr>
           <tr>
             {#each chunk as day (day)}
-              <th class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>F</th>
-              <th class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-800' : ''}>S</th>
+              <th class={isHolidayDay(appState.holidays, register, day) ? 'print-holiday-head' : ''}>F</th>
+              <th class={isHolidayDay(appState.holidays, register, day) ? 'print-holiday-head' : ''}>S</th>
             {/each}
           </tr>
         </thead>
@@ -192,7 +192,7 @@
               <td class="text-left font-semibold">{row.student.name}</td>
               {#each chunk as day (day)}
                 {#each [1, 2] as session (session)}
-                  <td class={isHolidayDay(appState.holidays, register, day) ? 'bg-red-50 font-bold text-red-900' : ''}>
+                  <td class={isHolidayDay(appState.holidays, register, day) ? 'bg-[#fef2f2] font-semibold text-[#7f1d1d]' : ''}>
                     {isHolidayDay(appState.holidays, register, day) ? 'H' : !isEnrollmentActiveOn(row.enrollment, dateKey(register.year, register.month, day)) ? '–' : status(row.enrollment.id, day, session as SessionNumber)}
                   </td>
                 {/each}
@@ -223,12 +223,12 @@
           </tfoot>
         {/if}
       </table>
-      <div class="mt-2 flex items-center justify-between text-[7px] text-register-700">
+      <div class="mt-2 flex items-center justify-between text-[7px] text-[#52525b]">
         <p>P = Present · A = Absent · L = Leave · H = Holiday</p>
         <p>F = First timing · S = Second timing · Each timing = 0.5</p>
       </div>
       {#if holidayReasons(chunk).length}
-        <p class="mt-1 text-[7px] font-semibold text-red-900">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>
+        <p class="mt-1 text-[7px] font-semibold text-[#7f1d1d]">Holiday reasons · {holidayReasons(chunk).join(' · ')}</p>
       {/if}
     </section>
   {/each}
@@ -338,7 +338,7 @@
             <td class="text-right font-bold">{minorToDisplay(feeGrandTotal(amounts))}</td>
             <td>
               {meta?.receiverName}
-              <div class="mt-4 border-b border-register-900"></div>
+              <div class="mt-4 border-b border-[#18181b]"></div>
             </td>
           </tr>
         {/each}
