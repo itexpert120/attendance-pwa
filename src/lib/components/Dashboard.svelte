@@ -98,7 +98,7 @@
         <AndroidLogo size={28} class="mt-0.5 shrink-0" />
         <div class="min-w-0 flex-1">
           <p class="type-title-medium">Move to the Android app</p>
-          <p class="type-body-medium mt-1 opacity-80">This web app is being replaced. Back up your data in Settings, install the app, then use "Import from web app".</p>
+          <p class="type-body-medium mt-1 opacity-80">This web app is being replaced. Back up your data in Settings, install the app, then use "Import from web app backup".</p>
           <div class="mt-3 flex flex-wrap gap-2">
             <a href={ANDROID_APK_URL} class="state-layer type-label-large inline-flex h-10 items-center rounded-full bg-tertiary px-4 text-on-tertiary">Download the app</a>
             <Button variant="ghost" onclick={() => navigate(paths.settings())}>Back up data</Button>
