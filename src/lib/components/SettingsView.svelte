@@ -9,6 +9,8 @@
   import Upload from 'phosphor-svelte/lib/UploadSimple'
   import Users from 'phosphor-svelte/lib/Users'
   import type { AttendanceState } from '../app-state.svelte'
+  import { downloadBackup } from '../android-app'
+  import MoveToAndroidSteps from './MoveToAndroidSteps.svelte'
   import { navigate, paths } from '../navigation'
   import { readThemePreference, setThemePreference, type ThemePreference } from '../theme'
   import SchoolMark from './SchoolMark.svelte'
@@ -33,15 +35,7 @@
   const monthName = (month: number) =>
     new Intl.DateTimeFormat('en', { month: 'long' }).format(new Date(2024, month - 1, 1))
 
-  async function backup() {
-    const blob = await appState.backup()
-    const url = URL.createObjectURL(blob)
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = `attendance-backup-${new Date().toISOString().slice(0, 10)}.json`
-    anchor.click()
-    URL.revokeObjectURL(url)
-  }
+  const backup = () => downloadBackup(appState)
 
   async function restore(event: Event) {
     const file = (event.currentTarget as HTMLInputElement).files?.[0]
@@ -82,6 +76,12 @@
         <p class="type-body-medium mb-3 text-on-surface-variant">Auto follows your device's light or dark setting.</p>
         <Segmented label="Theme" bind:value={() => theme, (next) => { theme = next; setThemePreference(next) }} options={themeOptions} />
       </div>
+    </section>
+
+    <section class="rounded-2xl bg-tertiary-container p-5 text-on-tertiary-container">
+      <h2 class="type-title-medium">Move to the Android app</h2>
+      <p class="type-body-medium mb-4 mt-1 opacity-80">This web app is being replaced by a native Android app. Your data moves with a backup file.</p>
+      <MoveToAndroidSteps state={appState} />
     </section>
 
     <ListGroup header="Backup" footer="Backups are a single file you keep. Restoring replaces everything stored on this device.">

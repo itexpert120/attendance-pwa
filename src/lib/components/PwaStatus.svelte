@@ -15,6 +15,9 @@
     userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
   }
 
+  // The web app is being replaced by the Android app, so it no longer offers to install itself.
+  const OFFER_INSTALL = false
+
   let online = $state(typeof navigator === 'undefined' ? true : navigator.onLine)
   // Offline is normal for this app, so the notice is a brief toast rather than a permanent banner.
   let offlineNotice = $state(false)
@@ -96,7 +99,7 @@
     <div role="status" class="kb-hide fixed inset-x-4 bottom-[calc(var(--tab-bar-height)+var(--safe-bottom)+0.75rem)] z-50 mx-auto flex min-h-12 max-w-md items-center gap-3 rounded-lg bg-inverse-surface py-1 pl-4 pr-2 text-inverse-on-surface shadow-[var(--shadow-e3)] md:bottom-6">
       <WifiOff size={18} class="shrink-0" /><p class="type-body-medium min-w-0 flex-1">Offline — changes save on this device</p>
     </div>
-  {:else if installPrompt && !dismissed}
+  {:else if OFFER_INSTALL && installPrompt && !dismissed}
     <div class="fixed inset-x-3 top-[calc(var(--safe-top)+0.5rem)] z-50 mx-auto flex max-w-xl items-center gap-3 rounded-2xl bg-surface-container-lowest p-3 pl-4 shadow-[var(--shadow-e2)]">
       <Download size={22} class="shrink-0 text-primary" />
       <div class="min-w-0 flex-1">

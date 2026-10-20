@@ -8,6 +8,7 @@
   import type { Tab } from './lib/ui-state.svelte'
   import Dashboard from './lib/components/Dashboard.svelte'
   import HomeworkView from './lib/components/HomeworkView.svelte'
+  import MoveToAndroidPrompt from './lib/components/MoveToAndroidPrompt.svelte'
   import PwaStatus from './lib/components/PwaStatus.svelte'
   import SchoolSettingsView from './lib/components/SchoolSettingsView.svelte'
   import SettingsView from './lib/components/SettingsView.svelte'
@@ -96,6 +97,7 @@
     <Router {routes} restoreScrollState />
   </div>
   <TabBar active={activeTab} visible={rootTab !== null} onselect={selectTab} />
+  <MoveToAndroidPrompt state={appState} />
 {/if}
 
 <PwaStatus />

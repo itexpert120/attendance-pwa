@@ -1,5 +1,9 @@
 # Students Attendance Register
 
+> **This web app is being replaced by the [Android app](https://github.com/itexpert120/attendance-android).**
+> Back up your data (Settings → Back up data), [download the APK](https://github.com/itexpert120/attendance-android/releases/latest/download/attendance.apk),
+> then in the Android app open Settings → Import from web app and pick the backup file.
+
 A mobile-first, installable attendance and fee register built with Svelte 5 runes, Tailwind CSS, Dexie/IndexedDB, Phosphor icons, and Vite PWA.
 
 All school data stays inside the browser profile on the device. There is no backend, account system, analytics, or cloud synchronization.
