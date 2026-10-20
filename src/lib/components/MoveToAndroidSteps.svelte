@@ -49,7 +49,7 @@
     <span class="type-label-large grid size-8 shrink-0 place-items-center rounded-full bg-primary text-on-primary">3</span>
     <div class="min-w-0 flex-1">
       <p class="type-title-small">Import your backup</p>
-      <p class="type-body-medium text-on-surface-variant">In the app, open Settings → Import from web app backup and pick the backup file from step 1.</p>
+      <p class="type-body-medium text-on-surface-variant">On the app's first screen tap "Import from the web app" and pick the backup file from step 1.</p>
     </div>
   </li>
 </ol>

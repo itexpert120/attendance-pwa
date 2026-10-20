@@ -2,7 +2,7 @@
 
 > **This web app is being replaced by the [Android app](https://github.com/itexpert120/attendance-android).**
 > Back up your data (Settings → Back up data), [download the APK](https://github.com/itexpert120/attendance-android/releases/latest/download/attendance.apk),
-> then in the Android app open Settings → Import from web app backup and pick the backup file.
+> then on the Android app's first screen tap **Import from the web app** and pick the backup file.
 
 A mobile-first, installable attendance and fee register built with Svelte 5 runes, Tailwind CSS, Dexie/IndexedDB, Phosphor icons, and Vite PWA.
 
